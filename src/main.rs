@@ -18,7 +18,7 @@ use crate::report::Report;
 use once_cell::sync::Lazy;
 use serenity::builder::CreateMessage;
 use serenity::gateway::ActivityData;
-use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{SqlitePool};
 use std::collections::HashMap;
 use std::env::var;
@@ -47,9 +47,11 @@ async fn main() {
         .create_if_missing(true)
         .optimize_on_close(true, None)
         .filename("lurk_chan.db");
-    let db = SqlitePool::connect_with(options)
-        .await
-        .expect("Failed to connect to database!");
+    let db = SqlitePoolOptions::new()
+        .min_connections(10)
+        .max_connections(100)
+        .connect_lazy_with(options);
+        
     sqlx::migrate!()
         .run(&db)
         .await
