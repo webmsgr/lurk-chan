@@ -12,6 +12,8 @@ use db::add_report_message;
 use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
+use tokio::fs::DirEntry;
+use tokio::select;
 
 use crate::audit::{DISC_AUDIT, SL_AUDIT};
 use crate::report::Report;
@@ -22,6 +24,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{SqlitePool};
 use std::collections::HashMap;
 use std::env::var;
+use std::path::PathBuf;
 use std::result::Result;
 use std::sync::Arc;
 use std::time::Duration;
@@ -72,7 +75,8 @@ async fn main() {
             }
         }
     });
-    tokio::task::spawn(optimize_db_task(Arc::clone(&lurk_chan)));
+    tokio::task::spawn(shutdown.wrap_delay_shutdown(optimize_db_task(Arc::clone(&lurk_chan), shutdown.clone())).expect("we are not already shutting down"));
+    tokio::task::spawn(shutdown.wrap_delay_shutdown(backup_task(Arc::clone(&lurk_chan), shutdown.clone())).expect("we are not already shutting down"));
     console::spawn_console(shutdown.clone(), Arc::clone(&lurk_chan));
     let token = var("DISCORD_TOKEN").expect("token");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
@@ -112,19 +116,65 @@ async fn main() {
     info!("Thank you for your service");
 }
 
-#[instrument(skip(lc))]
-async fn optimize_db_task(lc: Arc<LurkChan>) {
-        let mut db = lc.db().await;
-        loop {
-            info!("Optimizing DB");
-            if let Err(e) = sqlx::query("PRAGMA optimize;").execute(&mut db).await {
-                error!("Failed to optimize DB: {}!", e)
-                
-            } else {
-                info!("DB optimized");
+#[instrument(skip(lc, s))]
+async fn optimize_db_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
+    let mut interval = tokio::time::interval(Duration::from_secs(60*60));
+    let mut db = lc.db().await;
+    loop {
+        select! {
+            _ = interval.tick() => {},
+            _ = s.wait_shutdown_triggered() => {
+                break;
             }
-            tokio::time::sleep(Duration::from_secs(60*60)).await;
         }
+        info!("Optimizing DB");
+        if let Err(e) = sqlx::query("PRAGMA optimize;").execute(&mut db).await {
+            error!("Failed to optimize DB: {}!", e)    
+        } else {
+            info!("DB optimized");
+        }
+    }
+}
+
+#[instrument(skip(lc,s))]
+async fn backup_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
+    let mut interval = tokio::time::interval(Duration::from_secs(60*60));
+    let mut db = lc.db().await;
+    let backup_folder = PathBuf::from(".").join("backups");
+    if !backup_folder.exists() {
+        if let Err(e) = tokio::fs::create_dir(&backup_folder).await {
+            error!("Failed to create backups directory: {}", e);
+            return;
+        }
+    }
+    loop {
+        select! {
+            _ = interval.tick() => {},
+            _ = s.wait_shutdown_triggered() => {
+                break;
+            }
+        }
+        info!("Backing up DB");
+        let now = Timestamp::now();
+        let backup_file = backup_folder.join(format!("backup_{}.db", now.timestamp()));
+        if let Err(e) = sqlx::query(&format!("vacuum into '{}';", backup_file.to_str().expect("path")))
+            .execute(&mut db).await {
+                error!("Failed to backup the DB: {}! this is probably an issue!", e);
+            }
+        if let Ok(mut rd) = tokio::fs::read_dir("backups").await {
+            let mut items = Vec::with_capacity(24);
+            while let Ok(Some(i)) = rd.next_entry().await {
+                items.push(i)
+            }
+            items.sort_by_cached_key(|v| v.file_name());
+            if items.len() > 24 {
+                let oldest = items[0].file_name();
+                if let Err(e) = tokio::fs::remove_file(oldest).await {
+                    error!("Failed to remove oldest backup: {}", e);
+                }
+            }
+        }
+    }
 }
 
 struct Handler;

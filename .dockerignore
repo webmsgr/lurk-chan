@@ -4,3 +4,5 @@ lurk-chan.db-shm
 lurk-chan.db-wal
 .env
 .idea
+*.db
+backups
