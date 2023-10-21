@@ -1,28 +1,61 @@
 use crate::report::Report;
 use serenity::builder::*;
 //use serenity::model::prelude::component::*;
-use serenity::model::prelude::*;
 use crate::audit::Location;
+use serenity::model::prelude::*;
 
 pub fn audit_log_modal(
     id: Option<i64>,
     report: Option<Report>,
     default_location: Location,
 ) -> CreateInteractionResponse {
-    let title = if id.is_some() { "Close report" } else { "Audit Log" };
-    CreateInteractionResponse::Modal(CreateModal::new(
-        format!("{}", id.unwrap_or(-1)),
-        title
-    ).components(vec![
-        CreateActionRow::InputText(CreateInputText::new(InputTextStyle::Short, "Location ('SL' or 'Discord')", "location").value(
-            match default_location {
-                Location::Discord => "Discord",
-                Location::SL => "SL"
-            })),
-        CreateActionRow::InputText(CreateInputText::new(InputTextStyle::Short, "ID", "id").value(report.as_ref().and_then(|r| Some(r.reported_id.as_str())).unwrap_or(""))),
-        CreateActionRow::InputText(CreateInputText::new(InputTextStyle::Short, "Name", "name").value(report.as_ref().and_then(|r| Some(r.reported_name.as_str())).unwrap_or(""))),
-        CreateActionRow::InputText(CreateInputText::new(InputTextStyle::Short, "Offense", "offense").value(report.as_ref().and_then(|r| Some(r.report_reason.as_str())).unwrap_or(""))),
-        CreateActionRow::InputText(CreateInputText::new(InputTextStyle::Short, "Punishment", "punishment")),
-    ])
+    let title = if id.is_some() {
+        "Close report"
+    } else {
+        "Audit Log"
+    };
+    CreateInteractionResponse::Modal(
+        CreateModal::new(format!("{}", id.unwrap_or(-1)), title).components(vec![
+            CreateActionRow::InputText(
+                CreateInputText::new(
+                    InputTextStyle::Short,
+                    "Location ('SL' or 'Discord')",
+                    "location",
+                )
+                .value(match default_location {
+                    Location::Discord => "Discord",
+                    Location::SL => "SL",
+                }),
+            ),
+            CreateActionRow::InputText(
+                CreateInputText::new(InputTextStyle::Short, "ID", "id").value(
+                    report
+                        .as_ref()
+                        .and_then(|r| Some(r.reported_id.as_str()))
+                        .unwrap_or(""),
+                ),
+            ),
+            CreateActionRow::InputText(
+                CreateInputText::new(InputTextStyle::Short, "Name", "name").value(
+                    report
+                        .as_ref()
+                        .and_then(|r| Some(r.reported_name.as_str()))
+                        .unwrap_or(""),
+                ),
+            ),
+            CreateActionRow::InputText(
+                CreateInputText::new(InputTextStyle::Short, "Offense", "offense").value(
+                    report
+                        .as_ref()
+                        .and_then(|r| Some(r.report_reason.as_str()))
+                        .unwrap_or(""),
+                ),
+            ),
+            CreateActionRow::InputText(CreateInputText::new(
+                InputTextStyle::Short,
+                "Punishment",
+                "punishment",
+            )),
+        ]),
     )
 }

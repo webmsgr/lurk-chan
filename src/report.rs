@@ -30,9 +30,10 @@ pub struct Report {
 }
 
 impl Report {
-    pub fn create_embed(self) -> CreateEmbed {
+    pub fn create_embed(self, report_id: i64) -> CreateEmbed {
         let rs = self.report_status_string();
-        CreateEmbed::default().title("Report")
+        CreateEmbed::default()
+            .title(format!("Report #{}", report_id))
             .description("A new report just came in!")
             .field("Reporter ID", self.reporter_id, true)
             .field("Reporter Nickname", self.reporter_name, true)
@@ -41,21 +42,26 @@ impl Report {
             .field("Reported Nickname", self.reported_name, true)
             .field("", "", false)
             .field("Report Reason", self.report_reason, true)
-            .field(
-                "Report Status",
-                rs,
-                true,
-            )
+            .field("Report Status", rs, true)
             .color(match self.report_status {
                 ReportStatus::Open => Color::from_rgb(0, 255, 0),
                 ReportStatus::Claimed => Color::from_rgb(255, 255, 0),
                 ReportStatus::Closed => Color::from_rgb(255, 0, 0),
             })
-            .author(CreateEmbedAuthor::new(self.server).icon_url("https://i.imgur.com/4jVFfFM.webp"))
-            .footer(CreateEmbedFooter::new(format!("/past {}", self.reported_id)))
-            .timestamp(self.time.parse::<Timestamp>().expect("SL gives a good time"))
+            .author(
+                CreateEmbedAuthor::new(self.server).icon_url("https://i.imgur.com/4jVFfFM.webp"),
+            )
+            .footer(CreateEmbedFooter::new(format!(
+                "/past {}",
+                self.reported_id
+            )))
+            .timestamp(
+                self.time
+                    .parse::<Timestamp>()
+                    .expect("SL gives a good time"),
+            )
     }
-    pub fn report_status_string(&self) -> String{
+    pub fn report_status_string(&self) -> String {
         match self.report_status.clone() {
             ReportStatus::Open => "Open".to_string(),
             ReportStatus::Claimed => match &self.claimant {
@@ -70,10 +76,11 @@ impl Report {
                     s.push_str("???")
                 }
                 if let Some(audit) = &self.audit {
-                    let msg =
-                        MessageId::new(audit.parse().expect(
-                            "Invalid sqlite data, audit needs to be a message id",
-                        ));
+                    let msg = MessageId::new(
+                        audit
+                            .parse()
+                            .expect("Invalid sqlite data, audit needs to be a message id"),
+                    );
                     s.push_str(&format!(" (See {})", msg.link(*SL_AUDIT, None)));
                 }
                 s
@@ -82,21 +89,27 @@ impl Report {
     }
     pub fn components(&self, id: i64) -> Vec<CreateActionRow> {
         let i: Option<CreateActionRow> = match self.report_status {
-            ReportStatus::Open => {
-                Some(CreateActionRow::Buttons(vec![
-                    CreateButton::new(format!("claim_{}", id)).label("Claim").style(ButtonStyle::Primary),
-                    CreateButton::new(format!("close_{}", id)).label("Close").style(ButtonStyle::Primary),
-                    CreateButton::new(format!("forceclose_{}", id)).label("Close without action").style(ButtonStyle::Danger),
-                ]))
-            },
-            ReportStatus::Claimed => {
-                Some(CreateActionRow::Buttons(vec![
-                    CreateButton::new(format!("close_{}", id)).label("Close").style(ButtonStyle::Primary),
-                    CreateButton::new(format!("forceclose_{}", id)).label("Close without action").style(ButtonStyle::Danger),
-                ]))
-            }
+            ReportStatus::Open => Some(CreateActionRow::Buttons(vec![
+                CreateButton::new(format!("claim_{}", id))
+                    .label("Claim")
+                    .style(ButtonStyle::Primary),
+                CreateButton::new(format!("close_{}", id))
+                    .label("Close")
+                    .style(ButtonStyle::Primary),
+                CreateButton::new(format!("forceclose_{}", id))
+                    .label("Close without action")
+                    .style(ButtonStyle::Danger),
+            ])),
+            ReportStatus::Claimed => Some(CreateActionRow::Buttons(vec![
+                CreateButton::new(format!("close_{}", id))
+                    .label("Close")
+                    .style(ButtonStyle::Primary),
+                CreateButton::new(format!("forceclose_{}", id))
+                    .label("Close without action")
+                    .style(ButtonStyle::Danger),
+            ])),
 
-            ReportStatus::Closed => None
+            ReportStatus::Closed => None,
         };
         if let Some(a) = i {
             vec![a]

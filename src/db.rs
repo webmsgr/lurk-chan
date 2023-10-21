@@ -1,6 +1,6 @@
 use crate::report::Report;
 use crate::report::ReportStatus;
-use serenity::builder::{EditMessage};
+use serenity::builder::EditMessage;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::sqlite::SqliteQueryResult;
@@ -16,7 +16,6 @@ pub async fn get_report(
     Ok(r)
 }
 
-
 pub async fn update_report_message(id: i64, db: &SqlitePool, m: &mut Message, ctx: &Context) {
     let report = match get_report(id, db).await {
         Ok(Some(r)) => r,
@@ -31,7 +30,12 @@ pub async fn update_report_message(id: i64, db: &SqlitePool, m: &mut Message, ct
     };
     let comp = report.components(id);
     let _ = m
-        .edit(&ctx, EditMessage::default().embed(report.create_embed()).components(comp))
+        .edit(
+            &ctx,
+            EditMessage::default()
+                .embed(report.create_embed(id))
+                .components(comp),
+        )
         .await;
 }
 #[instrument(skip(db))]
@@ -57,7 +61,10 @@ pub async fn add_report(r: Report, db: &SqlitePool) -> Result<SqliteQueryResult,
 //     report int,
 //     foreign key(report) references Reports(id)
 #[instrument(skip(db))]
-pub async fn add_action(a: crate::audit::Action, db: &SqlitePool) -> Result<SqliteQueryResult, Error> {
+pub async fn add_action(
+    a: crate::audit::Action,
+    db: &SqlitePool,
+) -> Result<SqliteQueryResult, Error> {
     query!("insert into Actions (target_id, target_username, offense, action, server, claimant, report) values (?, ?, ?, ?, ?, ?, ?)",
         a.target_id,
         a.target_username,

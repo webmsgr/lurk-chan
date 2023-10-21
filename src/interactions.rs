@@ -1,22 +1,29 @@
-use crate::audit::{AuditModelResult, DISC_AUDIT, Location, SL_AUDIT};
+use crate::audit::{AuditModelResult, Location, DISC_AUDIT, SL_AUDIT};
 use crate::db::{add_action, get_report, update_report_message};
 use crate::prefabs::audit_log_modal;
 use crate::{commands, LurkChan};
+use serenity::all::EditInteractionResponse;
+use serenity::builder::{CreateInteractionResponseFollowup, CreateMessage};
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::query;
 use std::collections::HashMap;
-use std::sync::Arc;
-use serenity::builder::{CreateInteractionResponseFollowup, CreateMessage};
-use tracing::{error, info, instrument};
 use std::result::Result;
-use serenity::all::{EditInteractionResponse};
+use std::sync::Arc;
+use tracing::{error, info, instrument};
 
 pub async fn on_interaction(ctx: Context, interaction: Interaction) {
     if let Some(m) = interaction.as_message_component() {
         if let Err(e) = on_interaction_button(&ctx, m).await {
             error!("Ruh roh, an error on button! {} !", e);
-            let _ = m.create_followup(&ctx, CreateInteractionResponseFollowup::default().ephemeral(true).content("Error! Contact wackery")).await;
+            let _ = m
+                .create_followup(
+                    &ctx,
+                    CreateInteractionResponseFollowup::default()
+                        .ephemeral(true)
+                        .content("Error! Contact wackery"),
+                )
+                .await;
             return;
         };
     } else if let Some(modl) = interaction.as_modal_submit() {
@@ -24,7 +31,14 @@ pub async fn on_interaction(ctx: Context, interaction: Interaction) {
         //let _ = modl.defer_ephemeral(&ctx).await;
         if let Err(e) = on_model(&ctx, modl).await {
             error!("Ruh roh, an error on_model! {} !", e);
-            let _ = modl.create_followup(&ctx, CreateInteractionResponseFollowup::default().ephemeral(true).content("Error! Contact wackery")).await;
+            let _ = modl
+                .create_followup(
+                    &ctx,
+                    CreateInteractionResponseFollowup::default()
+                        .ephemeral(true)
+                        .content("Error! Contact wackery"),
+                )
+                .await;
             return;
         };
     } else if let Some(command) = interaction.as_command() {
@@ -33,11 +47,13 @@ pub async fn on_interaction(ctx: Context, interaction: Interaction) {
         info!("Unknown interaction: {:?}", interaction);
         return;
     }
-
 }
 
 #[instrument(skip(ctx, modl))]
-async fn on_model(ctx: &Context, modl: &ModalInteraction) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn on_model(
+    ctx: &Context,
+    modl: &ModalInteraction,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     modl.defer_ephemeral(&ctx).await?;
     let lc = {
         let data = ctx.data.read().await;
@@ -57,42 +73,53 @@ async fn on_model(ctx: &Context, modl: &ModalInteraction) -> Result<(), Box<dyn 
                 ActionRowComponent::InputText(t) => t,
                 _ => unreachable!(),
             };
-            (e.custom_id, e.value.expect("Should be filled out because we got it from dickcord"))
+            (
+                e.custom_id,
+                e.value
+                    .expect("Should be filled out because we got it from dickcord"),
+            )
         })
         .collect();
     //println!("{:?}, {:?}", model_data, modl.message);
     let _ = modl.defer_ephemeral(&ctx).await;
-    let model_data: AuditModelResult = serde_json::to_value(model_data).and_then(|s| serde_json::from_value(s))?;
+    let model_data: AuditModelResult =
+        serde_json::to_value(model_data).and_then(|s| serde_json::from_value(s))?;
     //println!("{:?}", model_data);
     let report_id = if id > 0 { Some(id) } else { None };
     let action = model_data.to_action(report_id.clone(), u.id);
     let chan = match &action.server {
         Location::Discord => *DISC_AUDIT,
-        Location::SL => *SL_AUDIT
+        Location::SL => *SL_AUDIT,
     };
     add_action(action.clone(), db).await?;
     let e = action.create_embed(&ctx).await?;
-    let m = chan.send_message(ctx, CreateMessage::default().embed(e)).await?;
+    let m = chan
+        .send_message(ctx, CreateMessage::default().embed(e))
+        .await?;
     if let Some(id) = report_id {
         let mut report_msg = modl.message.clone().unwrap();
         let uid = u.id.get().to_string();
         let mid = m.id.get().to_string();
         query!(
-                "update Reports set claimant = ?, report_status = 'closed', audit = ? where id = ?",
-                uid,
-                mid,
-                id
-            )
-            .execute(db)
-            .await?;
+            "update Reports set claimant = ?, report_status = 'closed', audit = ? where id = ?",
+            uid,
+            mid,
+            id
+        )
+        .execute(db)
+        .await?;
         update_report_message(id, db, &mut report_msg, ctx).await;
     }
-    modl.edit_response(ctx, EditInteractionResponse::new().content("ok")).await?;
-    return Ok(())
+    modl.edit_response(ctx, EditInteractionResponse::new().content("ok"))
+        .await?;
+    return Ok(());
 }
 
 #[instrument(skip(ctx, int))]
-async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn on_interaction_button(
+    ctx: &Context,
+    int: &ComponentInteraction,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let lc = {
         let data = ctx.data.read().await;
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
@@ -125,8 +152,9 @@ async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> Res
                 Some(Some(v)) => Some(v),
                 _ => None,
             };
-            int.create_response(&ctx, audit_log_modal(Some(id), report, Location::SL)).await?;
-            return Ok(())
+            int.create_response(&ctx, audit_log_modal(Some(id), report, Location::SL))
+                .await?;
+            return Ok(());
             /*if let Err(e) = query!(
                 "update Reports set claimant = ?, report_status = 'closed' where id = ?",
                 uid,
@@ -152,6 +180,12 @@ async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> Res
         _ => unreachable!(),
     }
     update_report_message(id, db, &mut m, &ctx).await;
-    int.create_followup(ctx, CreateInteractionResponseFollowup::default().content("ok").ephemeral(true)).await?;
+    int.create_followup(
+        ctx,
+        CreateInteractionResponseFollowup::default()
+            .content("ok")
+            .ephemeral(true),
+    )
+    .await?;
     Ok(())
 }

@@ -1,13 +1,13 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use serenity::model::id::ChannelId;
-use std::env::var;
+use serenity::builder::CreateEmbedFooter;
 use serenity::builder::{CreateEmbed, CreateEmbedAuthor};
 use serenity::client::Context;
+use serenity::model::id::ChannelId;
 use serenity::model::prelude::*;
-use std::result::Result;
-use serenity::builder::CreateEmbedFooter;
 use serenity::model::Color;
+use std::env::var;
+use std::result::Result;
 
 pub static SL_AUDIT: Lazy<ChannelId> = Lazy::new(|| var("SL_AUDIT").unwrap().parse().unwrap());
 pub static DISC_AUDIT: Lazy<ChannelId> = Lazy::new(|| var("DISC_AUDIT").unwrap().parse().unwrap());
@@ -37,11 +37,10 @@ impl AuditModelResult {
             action: self.punishment,
             server: self.location,
             claimant: user.get().to_string(),
-            report: report_id
+            report: report_id,
         }
     }
 }
-
 
 /*target_id text not null,
 target_username text not null,
@@ -57,18 +56,31 @@ pub struct Action {
     pub action: String,
     pub server: Location,
     pub claimant: String,
-    pub report: Option<i64>
+    pub report: Option<i64>,
 }
 impl Action {
-    pub async fn create_embed(self, ctx: &Context) -> Result<CreateEmbed, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn create_embed(
+        self,
+        ctx: &Context,
+    ) -> Result<CreateEmbed, Box<dyn std::error::Error + Send + Sync>> {
         let c: UserId = self.claimant.parse()?;
-        let g = SL_AUDIT.to_channel(ctx).await?.guild().ok_or_else(|| "fuck")?.guild(ctx).unwrap().id;
+        let g = SL_AUDIT
+            .to_channel(ctx)
+            .await?
+            .guild()
+            .ok_or_else(|| "fuck")?
+            .guild(ctx)
+            .unwrap()
+            .id;
         let u = c.to_user(ctx).await?;
-        let nick = u.nick_in(ctx, g).await.unwrap_or_else(|| u.global_name.as_ref().unwrap_or_else(|| &u.name).clone());
+        let nick = u
+            .nick_in(ctx, g)
+            .await
+            .unwrap_or_else(|| u.global_name.as_ref().unwrap_or_else(|| &u.name).clone());
         //let ch = SL_AUDIT.to_channel(ctx).await.unwrap().g;
         Ok(CreateEmbed::default()
             .title("Audit Log")
-            .color(Color::PURPLE/*from_rgb(249,19,109)*/)
+            .color(Color::PURPLE /*from_rgb(249,19,109)*/)
             .author(CreateEmbedAuthor::new(nick).icon_url(u.face()))
             .field("ID", self.target_id, false)
             .field("Username", self.target_username, false)
@@ -76,7 +88,7 @@ impl Action {
             .field("Action", self.action, false)
             .footer(CreateEmbedFooter::new({
                 if let Some(r) = self.report {
-                    format!("/report {}",r)
+                    format!("/report {}", r)
                 } else {
                     "No report".to_string()
                 }

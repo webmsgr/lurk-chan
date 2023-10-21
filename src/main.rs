@@ -1,10 +1,10 @@
 mod audit;
+mod commands;
+mod console;
 mod db;
 mod interactions;
 mod prefabs;
 mod report;
-mod commands;
-mod console;
 
 use async_shutdown::ShutdownManager;
 
@@ -12,18 +12,18 @@ use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 
+use crate::audit::{DISC_AUDIT, SL_AUDIT};
 use crate::report::Report;
+use once_cell::sync::Lazy;
+use serenity::builder::CreateMessage;
+use serenity::gateway::ActivityData;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::env::var;
 use std::result::Result;
 use std::sync::Arc;
-use once_cell::sync::Lazy;
-use serenity::builder::CreateMessage;
-use serenity::gateway::ActivityData;
 use tracing::{error, info, instrument};
-use crate::audit::{DISC_AUDIT, SL_AUDIT};
 
 /// this struct is passed around in an arc to share state
 pub struct LurkChan {
@@ -147,7 +147,6 @@ impl EventHandler for Handler {
             env!("CARGO_PKG_VERSION")
         );
         ctx.set_activity(Some(ActivityData::watching("for new reports!")));
-        
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         interactions::on_interaction(ctx, interaction).await;
@@ -181,7 +180,12 @@ impl EventHandler for Handler {
         let comp = msg_report.components(id);
         if let Err(e) = new_message
             .channel_id
-            .send_message(&ctx, CreateMessage::default().embed(msg_report.create_embed()).components(comp))
+            .send_message(
+                &ctx,
+                CreateMessage::default()
+                    .embed(msg_report.create_embed(id))
+                    .components(comp),
+            )
             .await
         {
             error!("Failed to send new messgae: {}", e);

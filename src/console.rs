@@ -1,4 +1,3 @@
-
 use std::io::{stdin, IsTerminal};
 use std::thread;
 
@@ -75,7 +74,6 @@ async fn console_process(s: ShutdownManager<&'static str>, mut rx: UnboundedRece
 
 use clap::{Parser, Subcommand};
 
-
 #[derive(Parser, Debug)]
 #[command(no_binary_name(true), disable_help_flag(true))]
 struct Command {
@@ -86,5 +84,4 @@ struct Command {
 enum Commands {
     /// Exits the bot
     Quit,
-
 }
