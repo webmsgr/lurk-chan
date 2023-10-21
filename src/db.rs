@@ -1,45 +1,88 @@
+use crate::lc::DBConn;
 use crate::report::Report;
 use crate::report::ReportStatus;
 use serenity::builder::EditMessage;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::sqlite::SqliteQueryResult;
-use sqlx::{query, query_as, Error, SqlitePool};
+use sqlx::{query, query_as, SqlitePool};
+use std::error::Error;
 use std::result::Result;
-
+use crate::audit::Location;
 use tracing::{error, instrument};
 pub async fn get_report(
     id: i64,
-    db: &SqlitePool,
+    db: &mut DBConn,
 ) -> Result<Option<Report>, Box<dyn std::error::Error + Send + Sync>> {
     let r = query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where id = ?", id).fetch_optional(db).await?;
     Ok(r)
 }
 
-pub async fn update_report_message(id: i64, db: &SqlitePool, m: &mut Message, ctx: &Context) {
+
+pub async fn get_action(id: i64, db: &mut DBConn) -> Result<Option<crate::audit::Action>, Box<dyn std::error::Error + Send + Sync>> {
+    let r = query_as!(crate::audit::Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where id = ?", id).fetch_optional(db).await?;
+    Ok(r)
+}
+#[must_use]
+pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let report = match get_report(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {
-            let _ = m.delete(&ctx).await;
-            return;
+            error!("No report for: {}", id);
+            return Err("No report for id".into());
         }
         Err(e) => {
-            error!("Error while fetching report for interaction: {}", e);
-            return;
+            return Err(e);
         }
     };
+    let mut m = get_report_message_from_id(id, db, ctx).await?;
     let comp = report.components(id);
-    let _ = m
+    m
         .edit(
             &ctx,
             EditMessage::default()
                 .embed(report.create_embed(id))
                 .components(comp),
         )
-        .await;
+        .await?;
+    Ok(())
 }
+
+#[must_use]
+pub async fn update_audit_message(id: i64, db: &mut DBConn, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let action = match get_action(id, db).await {
+        Ok(Some(r)) => r,
+        Ok(None) => {
+            error!("No action for: {}", id);
+            return Err("No action for id".into());
+        }
+        Err(e) => {
+            error!("Error while fetching action for interaction: {}", e);
+            return Err(e);
+        }
+    };
+    let mut m = match get_audit_message_from_id(id, db, ctx).await {
+        Ok(m) => m,
+        Err(e) => {
+            error!("Error while fetching message for interaction: {}", e);
+            return Err(e);
+        }
+    };
+    let comp = action.create_components(id);
+    let embed = action.create_embed(ctx, id).await?;
+    let _ = m
+        .edit(
+            &ctx,
+            EditMessage::default()
+                .embed(embed)
+                .components(comp),
+        )
+        .await?;
+    Ok(())
+}
+
 #[instrument(skip(db))]
-pub async fn add_report(r: Report, db: &SqlitePool) -> Result<SqliteQueryResult, Error> {
+pub async fn add_report(r: Report, db: &mut DBConn) -> Result<SqliteQueryResult, sqlx::Error> {
     query!("insert into Reports (reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status, server, time) values (?, ?, ?, ?, ?, ?, ?, ?)",
                 r.reporter_id,
                 r.reporter_name,
@@ -63,8 +106,8 @@ pub async fn add_report(r: Report, db: &SqlitePool) -> Result<SqliteQueryResult,
 #[instrument(skip(db))]
 pub async fn add_action(
     a: crate::audit::Action,
-    db: &SqlitePool,
-) -> Result<SqliteQueryResult, Error> {
+    db: &mut DBConn,
+) -> Result<SqliteQueryResult, sqlx::Error> {
     query!("insert into Actions (target_id, target_username, offense, action, server, claimant, report) values (?, ?, ?, ?, ?, ?, ?)",
         a.target_id,
         a.target_username,
@@ -74,4 +117,68 @@ pub async fn add_action(
             a.claimant,
             a.report
             ).execute(db).await
+}
+
+
+pub async fn add_report_message(id: i64, message: Message, db: &mut DBConn) -> bool {
+    let mid = message.id.get().to_string();
+    let cid = message.channel_id.get().to_string();
+    query!("insert into ReportMessages (report_id, message, channel) values (?, ?, ?)",
+        id,
+        mid,
+        cid
+    ).execute(db).await.is_ok()
+}
+
+
+pub async fn add_action_message(id: i64, message: Message, db: &mut DBConn) -> bool {
+    let mid = message.id.get().to_string();
+    let cid = message.channel_id.get().to_string();
+    query!("insert into ActionMessages (action_id, message, channel) values (?, ?, ?)",
+        id,
+        mid,
+        cid
+    ).execute(db).await.is_ok()
+}
+
+pub async fn get_report_message_from_id(rid: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> Result<Message, Box<dyn std::error::Error + Send + Sync>> {
+    let rec = query!("select message, channel from ReportMessages where report_id = ?;", rid).fetch_one(db).await?;
+    let m = MessageId::new(rec.message.parse::<u64>().expect("Message ID to be a u64"));
+    let c = ChannelId::new(rec.channel.parse::<u64>().expect("Channel ID to be a u64"));
+    let m = c.message(ctx, m).await?;
+    Ok(m)
+}
+
+
+
+pub async fn get_audit_message_from_id(rid: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> Result<Message, Box<dyn std::error::Error + Send + Sync>> {
+    let rec = query!("select message, channel from ActionMessages where action_id = ?;", rid).fetch_one(db).await?;
+    let m = MessageId::new(rec.message.parse::<u64>().expect("Message ID to be a u64"));
+    let c = ChannelId::new(rec.channel.parse::<u64>().expect("Channel ID to be a u64"));
+    let m = c.message(ctx, m).await?;
+    Ok(m)
+}
+
+
+pub async fn get_audit_message_from_report(rid: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> Result<Option<Message>, Box<dyn std::error::Error + Send + Sync>>{
+    // get the report
+    let rep = get_report(rid, db).await?;
+    let rep = match rep {
+        Some(r) => r,
+        None => return Ok(None)
+    };
+    if let Some(e) = rep.audit {
+        let rec = query!("select message, channel from ActionMessages where message = ?;", e).fetch_optional(db).await?;
+        if let Some(r) = rec {
+            let m = MessageId::new(r.message.parse::<u64>().expect("Message ID to be a u64"));
+            let c = ChannelId::new(r.channel.parse::<u64>().expect("Channel ID to be a u64"));
+            let m = c.message(ctx, m).await?;
+            Ok(Some(m))
+        } else {
+            return Ok(None)
+        }
+    } else {
+        return Ok(None)
+    }
+    
 }

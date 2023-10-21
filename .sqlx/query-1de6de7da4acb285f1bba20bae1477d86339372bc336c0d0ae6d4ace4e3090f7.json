@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into ReportMessages (report_id, message, channel) values (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "1de6de7da4acb285f1bba20bae1477d86339372bc336c0d0ae6d4ace4e3090f7"
+}

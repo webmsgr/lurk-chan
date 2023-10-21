@@ -22,7 +22,7 @@ pub async fn run(
                 ctx,
                 CreateInteractionResponse::Message(
                     CreateInteractionResponseMessage::new()
-                        .content({ "nuh uh!" })
+                        .content("nuh uh!")
                         .ephemeral(true),
                 ),
             )
@@ -34,7 +34,7 @@ pub async fn run(
             ctx,
             CreateInteractionResponse::Message(
                 CreateInteractionResponseMessage::new()
-                    .content({ "begining import, god help us all" })
+                    .content("begining import, god help us all")
                     .ephemeral(true),
             ),
         )
@@ -68,8 +68,9 @@ pub async fn run(
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
     };
     mes.reverse();
+    let mut db = lc.db().await;
     for item in mes {
-        db::add_report(item, &lc.db).await?;
+        db::add_report(item, &mut db).await?;
     }
     info!("Import complete");
     Ok(())

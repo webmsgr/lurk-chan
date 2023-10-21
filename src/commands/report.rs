@@ -9,6 +9,7 @@ use serenity::prelude::*;
 use sqlx::query_as;
 use std::error::Error;
 use std::sync::Arc;
+use sqlx::Acquire;
 pub async fn run(
     ctx: &Context,
     interaction: &CommandInteraction,
@@ -18,7 +19,7 @@ pub async fn run(
         let data = ctx.data.read().await;
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
     };
-    let db = &lc.db;
+    let mut db = lc.db().await;
     // grab the first argument
     let id = interaction
         .data
@@ -28,7 +29,7 @@ pub async fn run(
         .value
         .as_i64()
         .expect("Value to be a string");
-    let report = query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where id = ?", id).fetch_optional(db).await?;
+    let report = query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where id = ?", id).fetch_optional(db.acquire().await?).await?;
     if let Some(r) = report {
         interaction
             .edit_response(

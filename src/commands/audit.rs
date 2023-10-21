@@ -10,7 +10,7 @@ pub async fn run(
     interaction: &CommandInteraction,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     interaction
-        .create_response(ctx, audit_log_modal(None, None, Location::SL))
+        .create_response(ctx, audit_log_modal(None, 'r', None, Location::SL, None))
         .await?;
     //interaction.create_followup(ctx, CreateInteractionResponseFollowup::new().content("ok").ephemeral(true)).await?;
     Ok(())

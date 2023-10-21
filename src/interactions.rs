@@ -1,16 +1,17 @@
 use crate::audit::{AuditModelResult, Location, DISC_AUDIT, SL_AUDIT};
-use crate::db::{add_action, get_report, update_report_message};
+use crate::db::{add_action, get_report, update_report_message, add_action_message, get_audit_message_from_report, get_action, update_audit_message};
 use crate::prefabs::audit_log_modal;
+use crate::report::Report;
 use crate::{commands, LurkChan};
 use serenity::all::EditInteractionResponse;
-use serenity::builder::{CreateInteractionResponseFollowup, CreateMessage};
+use serenity::builder::{CreateInteractionResponseFollowup, CreateMessage, EditMessage, CreateInteractionResponse, CreateInteractionResponseMessage};
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::query;
 use std::collections::HashMap;
 use std::result::Result;
 use std::sync::Arc;
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 pub async fn on_interaction(ctx: Context, interaction: Interaction) {
     if let Some(m) = interaction.as_message_component() {
@@ -59,8 +60,10 @@ async fn on_model(
         let data = ctx.data.read().await;
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
     };
-    let db = &lc.db;
-    let id: i64 = modl.data.custom_id.parse()?;
+    let mut db = lc.db().await;
+    let mut c =  modl.data.custom_id.chars();
+    let s = c.next().expect("Custom id to be present");
+    let id: i64 = c.collect::<String>().parse().expect("Custom id to be a number");
     let u = &modl.user;
     // send relevent message in audit log
     let model_data: HashMap<String, String> = modl
@@ -85,31 +88,80 @@ async fn on_model(
     let model_data: AuditModelResult =
         serde_json::to_value(model_data).and_then(|s| serde_json::from_value(s))?;
     //println!("{:?}", model_data);
-    let report_id = if id > 0 { Some(id) } else { None };
-    let action = model_data.to_action(report_id.clone(), u.id);
-    let chan = match &action.server {
-        Location::Discord => *DISC_AUDIT,
-        Location::SL => *SL_AUDIT,
-    };
-    add_action(action.clone(), db).await?;
-    let e = action.create_embed(&ctx).await?;
-    let m = chan
-        .send_message(ctx, CreateMessage::default().embed(e))
-        .await?;
-    if let Some(id) = report_id {
-        let mut report_msg = modl.message.clone().unwrap();
-        let uid = u.id.get().to_string();
-        let mid = m.id.get().to_string();
-        query!(
-            "update Reports set claimant = ?, report_status = 'closed', audit = ? where id = ?",
-            uid,
-            mid,
-            id
-        )
-        .execute(db)
-        .await?;
-        update_report_message(id, db, &mut report_msg, ctx).await;
+    match s {
+        'r' => {
+            let report_id = if id > 0 { Some(id) } else { None };
+            let action = model_data.to_action(report_id.clone(), u.id);
+            let chan = match &action.server {
+                Location::Discord => *DISC_AUDIT,
+                Location::SL => *SL_AUDIT,
+            };
+            let r = add_action(action.clone(), &mut db).await?;
+            let a_id = r.last_insert_rowid();
+            let comp = action.create_components(a_id);
+            let e = action.create_embed(&ctx, a_id).await?;
+            
+            if let Some(_) = get_audit_message_from_report(id, &mut db, ctx).await? {
+                warn!("Probably a race condition, this is bad!");
+                //m.edit(ctx, EditMessage::default().embed(e).components(comp)).await?;
+            } else {
+                let m = chan
+                    .send_message(ctx, CreateMessage::default().embed(e).components(comp))
+                    .await?;
+                add_action_message(a_id, m.clone(), &mut db).await;
+                if let Some(id) = report_id {
+                //let mut report_msg = modl.message.clone().unwrap();
+                    let uid = u.id.get().to_string();
+                    let mid = m.id.get().to_string();
+                    query!(
+                        "update Reports set claimant = ?, report_status = 'closed', audit = ? where id = ?",
+                        uid,
+                        mid,
+                        id
+                    )
+                    .execute(&mut db)
+                    .await?;
+                    update_report_message(id, &mut db, ctx).await?;
+                }
+            }
+        }
+        'a' => {
+            let action = get_action(id, &mut db).await?.ok_or_else(|| "No action for id")?;
+            let mut m_action = model_data.to_action(Some(id), u.id);
+            m_action.report = action.report.clone();
+            m_action.server = action.server.clone();
+            let old = serde_json::to_value(&action)?;
+            //target_id text not null,
+            //target_username text not null,
+            //offense text not null,
+            //action text not null,
+            let _ = query!("update Actions set target_id = ?, target_username = ?, offense = ?, action = ? where id = ?", 
+                m_action.target_id, 
+                m_action.target_username,
+                m_action.offense,
+                m_action.action,
+                id).execute(&mut db).await?;
+            let new = serde_json::to_value(&m_action)?;
+            
+            if old == new {
+                // no change
+                info!("no changes!");
+                modl.edit_response(ctx, EditInteractionResponse::new().content("no change"))
+                    .await?;
+                return Ok(());
+            }
+            let who = u.id.to_string();
+            let when = Timestamp::now().to_string();
+            let changes = json_patch::diff(&old, &new);
+            let old_str = serde_json::to_string(&old)?;
+            let new_str = serde_json::to_string(&new)?;
+            let changes_str = serde_json::to_string(&changes)?;
+            query!("insert into AuditEdits (action_id, old, new, who, time, changes) values (?, ?, ?, ?, ?, ?)", id, old_str, new_str, who, when, changes_str).execute(&mut db).await?;
+            update_audit_message(id, &mut db, ctx).await?;
+        },
+        _ => unreachable!(),
     }
+    
     modl.edit_response(ctx, EditInteractionResponse::new().content("ok"))
         .await?;
     return Ok(());
@@ -124,14 +176,14 @@ async fn on_interaction_button(
         let data = ctx.data.read().await;
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
     };
-    let db = &lc.db;
+    let mut db = lc.db().await;
     let (kind, id) = int
         .data
         .custom_id
         .split_once("_")
         .expect("Invalid custom id, this should never fuckign happen");
     let id: i64 = id.parse().expect("Failed to parse id, fuck!");
-    let mut m = int.message.clone();
+    //let mut m = int.message.clone();
     //
     let uid = int.user.id.to_string();
     match kind {
@@ -143,16 +195,16 @@ async fn on_interaction_button(
                 uid,
                 id
             )
-            .execute(db)
+            .execute(&mut db)
             .await?;
         }
         "close" => {
             info!("close {}", id);
-            let report = match get_report(id, db).await.ok() {
+            let report = match get_report(id, &mut db).await.ok() {
                 Some(Some(v)) => Some(v),
                 _ => None,
             };
-            int.create_response(&ctx, audit_log_modal(Some(id), report, Location::SL))
+            int.create_response(&ctx, audit_log_modal(Some(id), 'r', report, Location::SL, None))
                 .await?;
             return Ok(());
             /*if let Err(e) = query!(
@@ -166,6 +218,38 @@ async fn on_interaction_button(
                 error!("error updating db: {:?}", e);
                 return;
             }*/
+        },
+        "edit" => {
+            info!("edit {}", id);
+            let action = match get_action(id, &mut db).await.ok() {
+                Some(Some(v)) => Some(v),
+                _ => None,
+            };
+            if let Some(a) = action {
+                if a.claimant != int.user.id.get().to_string() {
+                    int.create_response(
+                        ctx,
+                        CreateInteractionResponse::Message(
+                            CreateInteractionResponseMessage::default()
+                            .content("You can't edit this!")
+                            .ephemeral(true)
+                        )
+        
+                    )
+                    .await?;
+                    return Ok(());
+                }
+                let r = Some(Report {
+                    reported_id: a.target_id,
+                    reported_name: a.target_username,
+                    report_reason: a.offense,
+                    ..Default::default()
+                });
+                int.create_response(&ctx, audit_log_modal(Some(id), 'a', r, a.server, Some(a.action)))
+                .await?;
+                return Ok(());
+            }
+            
         }
         "forceclose" => {
             int.defer_ephemeral(&ctx).await?;
@@ -174,12 +258,12 @@ async fn on_interaction_button(
                 uid,
                 id
             )
-            .execute(db)
+            .execute(&mut db)
             .await?;
         }
         _ => unreachable!(),
     }
-    update_report_message(id, db, &mut m, &ctx).await;
+    update_report_message(id, &mut db, &ctx).await?;
     int.create_followup(
         ctx,
         CreateInteractionResponseFollowup::default()

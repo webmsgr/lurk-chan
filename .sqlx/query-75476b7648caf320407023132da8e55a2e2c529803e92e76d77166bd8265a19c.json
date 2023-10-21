@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "select message, channel from ActionMessages where action_id = ?;",
+  "describe": {
+    "columns": [
+      {
+        "name": "message",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "channel",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "75476b7648caf320407023132da8e55a2e2c529803e92e76d77166bd8265a19c"
+}

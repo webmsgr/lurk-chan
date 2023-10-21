@@ -1,9 +1,9 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use serenity::builder::CreateEmbedFooter;
+use serenity::builder::{CreateEmbedFooter, CreateActionRow, CreateButton};
 use serenity::builder::{CreateEmbed, CreateEmbedAuthor};
 use serenity::client::Context;
-use serenity::model::id::ChannelId;
+use serenity::model::id::{ChannelId, self};
 use serenity::model::prelude::*;
 use serenity::model::Color;
 use std::env::var;
@@ -48,7 +48,7 @@ offense text not null,
 action text not null,
 server text not null,
 report int,*/
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Action {
     pub target_id: String,
     pub target_username: String,
@@ -62,6 +62,7 @@ impl Action {
     pub async fn create_embed(
         self,
         ctx: &Context,
+        id: i64,
     ) -> Result<CreateEmbed, Box<dyn std::error::Error + Send + Sync>> {
         let c: UserId = self.claimant.parse()?;
         let g = SL_AUDIT
@@ -79,7 +80,7 @@ impl Action {
             .unwrap_or_else(|| u.global_name.as_ref().unwrap_or_else(|| &u.name).clone());
         //let ch = SL_AUDIT.to_channel(ctx).await.unwrap().g;
         Ok(CreateEmbed::default()
-            .title("Audit Log")
+            .title(format!("Audit Log #{}", id))
             .color(Color::PURPLE /*from_rgb(249,19,109)*/)
             .author(CreateEmbedAuthor::new(nick).icon_url(u.face()))
             .field("ID", self.target_id, false)
@@ -93,5 +94,10 @@ impl Action {
                     "No report".to_string()
                 }
             })))
+    }
+    pub fn create_components(&self, id: i64) -> Vec<CreateActionRow> {
+        vec![CreateActionRow::Buttons(vec![
+            CreateButton::new(format!("edit_{}", id)).label("Edit").style(ButtonStyle::Secondary)
+        ])]
     }
 }

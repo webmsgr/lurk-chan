@@ -6,8 +6,10 @@ use serenity::model::prelude::*;
 
 pub fn audit_log_modal(
     id: Option<i64>,
+    specifier: char,
     report: Option<Report>,
     default_location: Location,
+    prefill_punishment: Option<String>,
 ) -> CreateInteractionResponse {
     let title = if id.is_some() {
         "Close report"
@@ -15,7 +17,7 @@ pub fn audit_log_modal(
         "Audit Log"
     };
     CreateInteractionResponse::Modal(
-        CreateModal::new(format!("{}", id.unwrap_or(-1)), title).components(vec![
+        CreateModal::new(format!("{}{}", specifier, id.unwrap_or(-1)), title).components(vec![
             CreateActionRow::InputText(
                 CreateInputText::new(
                     InputTextStyle::Short,
@@ -55,7 +57,7 @@ pub fn audit_log_modal(
                 InputTextStyle::Short,
                 "Punishment",
                 "punishment",
-            )),
+            ).value(prefill_punishment.unwrap_or_else(|| "".to_string()).as_str())),
         ]),
     )
 }

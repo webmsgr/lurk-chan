@@ -8,6 +8,7 @@ mod report;
 
 use async_shutdown::ShutdownManager;
 
+use db::add_report_message;
 use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
@@ -18,21 +19,18 @@ use once_cell::sync::Lazy;
 use serenity::builder::CreateMessage;
 use serenity::gateway::ActivityData;
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, query, SqliteConnection};
 use std::collections::HashMap;
 use std::env::var;
 use std::result::Result;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{error, info, instrument};
 
 /// this struct is passed around in an arc to share state
-pub struct LurkChan {
-    pub db: SqlitePool,
-}
+mod lc;
+pub use lc::LurkChan;
 
-impl TypeMapKey for LurkChan {
-    type Value = Arc<LurkChan>;
-}
 
 #[tokio::main]
 async fn main() {
@@ -47,6 +45,7 @@ async fn main() {
     let options = SqliteConnectOptions::default()
         .foreign_keys(true)
         .create_if_missing(true)
+        .optimize_on_close(true, None)
         .filename("lurk_chan.db");
     let db = SqlitePool::connect_with(options)
         .await
@@ -55,7 +54,7 @@ async fn main() {
         .run(&db)
         .await
         .expect("Failed to run migrations, database is fucked!");
-    let lurk_chan = Arc::new(LurkChan { db });
+    let lurk_chan = Arc::new(LurkChan::new(db));
 
     let shutdown = ShutdownManager::new();
 
@@ -71,7 +70,8 @@ async fn main() {
             }
         }
     });
-    console::spawn_console(shutdown.clone());
+    tokio::task::spawn(optimize_db_task(Arc::clone(&lurk_chan)));
+    console::spawn_console(shutdown.clone(), Arc::clone(&lurk_chan));
     let token = var("DISCORD_TOKEN").expect("token");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     let mut client = Client::builder(token, intents)
@@ -110,6 +110,21 @@ async fn main() {
     info!("Thank you for your service");
 }
 
+#[instrument(skip(lc))]
+async fn optimize_db_task(lc: Arc<LurkChan>) {
+        let mut db = lc.db().await;
+        loop {
+            info!("Optimizing DB");
+            if let Err(e) = sqlx::query("PRAGMA optimize;").execute(&mut db).await {
+                error!("Failed to optimize DB: {}!", e)
+                
+            } else {
+                info!("DB optimized");
+            }
+            tokio::time::sleep(Duration::from_secs(60*60)).await;
+        }
+}
+
 struct Handler;
 
 pub fn report_from_msg(
@@ -146,7 +161,7 @@ impl EventHandler for Handler {
             data_about_bot.user.name,
             env!("CARGO_PKG_VERSION")
         );
-        ctx.set_activity(Some(ActivityData::watching("for new reports!")));
+        ctx.set_activity(Some(ActivityData::watching(format!("for new reports! (v{})", env!("CARGO_PKG_VERSION")))));
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         interactions::on_interaction(ctx, interaction).await;
@@ -167,7 +182,8 @@ impl EventHandler for Handler {
             let data = ctx.data.read().await;
             Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
         };
-        let q = db::add_report(r, &lc.db).await;
+        let mut db = lc.db().await;
+        let q = db::add_report(r, &mut db).await;
         let id = match q {
             Ok(res) => res.last_insert_rowid(),
             Err(err) => {
@@ -178,18 +194,28 @@ impl EventHandler for Handler {
 
         // send a whole new message
         let comp = msg_report.components(id);
-        if let Err(e) = new_message
-            .channel_id
-            .send_message(
-                &ctx,
-                CreateMessage::default()
-                    .embed(msg_report.create_embed(id))
-                    .components(comp),
-            )
-            .await
+        let m = new_message
+        .channel_id
+        .send_message(
+            &ctx,
+            CreateMessage::default()
+                .embed(msg_report.create_embed(id))
+                .components(comp),
+        )
+        .await;
+        let m = match m
         {
-            error!("Failed to send new messgae: {}", e);
-            return;
+            Ok(m) => m,
+            Err(e) => {
+                error!("Failed to send new messgae: {}", e);
+                return;
+            }
+        };
+        
+        // insert the message
+
+        if !add_report_message(id, m, &mut db).await {
+            error!("Failed to insert message into database, this isn't fatal but its bad!");
         }
 
         // delete the old message

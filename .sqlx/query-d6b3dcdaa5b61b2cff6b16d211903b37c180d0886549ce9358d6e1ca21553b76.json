@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "target_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_username",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "offense",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "action",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "server: Location",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "claimant",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "report",
+        "ordinal": 6,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "d6b3dcdaa5b61b2cff6b16d211903b37c180d0886549ce9358d6e1ca21553b76"
+}

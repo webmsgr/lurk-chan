@@ -1,13 +1,15 @@
 use std::io::{stdin, IsTerminal};
+use std::sync::Arc;
 use std::thread;
 
 use async_shutdown::ShutdownManager;
 
+use sqlx::Acquire;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tracing::{error, info, instrument};
 
-#[instrument(skip(s))]
-pub fn spawn_console(s: ShutdownManager<&'static str>) {
+#[instrument(skip(s, lc))]
+pub fn spawn_console(s: ShutdownManager<&'static str>, lc: Arc<LurkChan>) {
     let dead_token = s.trigger_shutdown_token("Console thread died.");
     let (tx, rx) = unbounded_channel();
     thread::spawn(move || {
@@ -16,10 +18,10 @@ pub fn spawn_console(s: ShutdownManager<&'static str>) {
         drop(dead_token); //t
     });
     let s2 = s.clone();
-    tokio::task::spawn(
-        s.wrap_delay_shutdown(console_process(s2, rx))
-            .expect("failed to create console task"),
-    );
+    tokio::task::spawn(async move {
+        s.wrap_delay_shutdown(console_process(s2, rx, lc))
+            .expect("failed to create console task").await
+    });
 }
 #[instrument(skip(tx))]
 fn console_thread(tx: UnboundedSender<String>) {
@@ -39,8 +41,8 @@ fn console_thread(tx: UnboundedSender<String>) {
         }
     }
 }
-#[instrument(skip(s, rx))]
-async fn console_process(s: ShutdownManager<&'static str>, mut rx: UnboundedReceiver<String>) {
+#[instrument(skip(s, rx, lc))]
+async fn console_process(s: ShutdownManager<&'static str>, mut rx: UnboundedReceiver<String>, lc: Arc<LurkChan>) {
     loop {
         tokio::select! {
             _ = s.wait_shutdown_triggered() => {
@@ -60,7 +62,50 @@ async fn console_process(s: ShutdownManager<&'static str>, mut rx: UnboundedRece
                 match Command::try_parse_from(msg).and_then(|e| Ok(e.command.clone())) {
                     Ok(Commands::Quit) => {
                         let _ = s.trigger_shutdown("Console request");
-                    }
+                    },
+                    Ok(Commands::Health) => {
+                        // query the db
+                        let mut db = lc.db().await;
+                        let data: Result<(i64, i64, i64, i64, usize, bool), sqlx::Error> = async move {
+                            let report_count = sqlx::query!("select count(*) as \"count: i64\" from Reports").fetch_one(db.acquire().await?).await?.count;
+                            let action_count = sqlx::query!("select count(*) as \"count: i64\" from Actions").fetch_one(db.acquire().await?).await?.count;
+                            let report_message_count = sqlx::query!("select count(*) as \"count: i64\" from ReportMessages").fetch_one(db.acquire().await?).await?.count;
+                            let action_message_count = sqlx::query!("select count(*) as \"count: i64\" from ActionMessages").fetch_one(db.acquire().await?).await?.count;
+                            let invalid_keys = sqlx::query!("PRAGMA foreign_key_check").fetch_all(db.acquire().await?).await?.len();
+                            let integrety_check = sqlx::query!("PRAGMA integrity_check").fetch_one(db.acquire().await?).await?.integrity_check == "ok";
+                           //let audit_message_count = sqlx::query!("select count(*) as \"count: i64\" from ").fetch_one(db).await.unwrap().count;
+                            Ok((report_count, action_count, report_message_count, action_message_count, invalid_keys, integrety_check))
+                        }.await;
+                        match data {
+                            Ok((report_count, action_count, report_message_count, action_message_count, invalid_keys, integrety_check)) => {
+                                let is_db_healthy = invalid_keys == 0 && integrety_check;
+                                info!("DB Health: ");
+                                info!("\tReport Count: {}", report_count);
+                                info!("\tAction Count: {}", action_count);
+                                info!("\tReport Message Count: {}", report_message_count);
+                                info!("\tAction Message Count: {}", action_message_count);
+                                if invalid_keys > 0 {
+                                    error!("\tThere are foreign key violations!");
+                                } else {
+                                    info!("\tNo foreign key violations detected.");
+                                }
+                                if !integrety_check {
+                                    error!("\tIntegrety check failed!");
+                                } else {
+                                    info!("\tIntegrety check passed.");
+                                }
+                                if is_db_healthy {
+                                    info!("DB is healthy!");
+                                } else {
+                                    error!("DB is not healthy!");
+                                }
+                            },
+                            Err(e) => {
+                                error!("Error getting DB Health: {}", e);
+                            }
+                        }
+                        
+                    },
                     Err(e) => {
                         let is_err = e.use_stderr();
                         let e = e.render();
@@ -74,6 +119,8 @@ async fn console_process(s: ShutdownManager<&'static str>, mut rx: UnboundedRece
 
 use clap::{Parser, Subcommand};
 
+use crate::LurkChan;
+
 #[derive(Parser, Debug)]
 #[command(no_binary_name(true), disable_help_flag(true))]
 struct Command {
@@ -84,4 +131,7 @@ struct Command {
 enum Commands {
     /// Exits the bot
     Quit,
+
+    /// Gets DB Health
+    Health
 }

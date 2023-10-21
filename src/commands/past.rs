@@ -4,7 +4,7 @@ use serenity::builder::{
     CreateInteractionResponseMessage, EditInteractionResponse,
 };
 use serenity::prelude::*;
-use sqlx::query_as;
+use sqlx::{query_as, Acquire};
 use std::error::Error;
 use std::future::Future;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ pub fn run<'a>(
             let data = ctx.data.read().await;
             Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
         };
-        let db = &lc.db;
+        let mut db = lc.db().await;
         // grab the first argument
         let id = interaction
             .data
@@ -43,13 +43,13 @@ pub fn run<'a>(
             .as_str()
             .expect("Value to be a string");
         let reportee = {
-            query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reporter_id = ? order by time desc", id).fetch_all(db).await
+            query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reporter_id = ? order by time desc", id).fetch_all(db.acquire().await?).await
         }?;
         let reported = {
-            query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reported_id = ? order by time desc", id).fetch_all(db).await
+            query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reported_id = ? order by time desc", id).fetch_all(db.acquire().await?).await
         }?;
         let actions = {
-            query_as!(Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where target_id = ?;", id).fetch_all(db).await
+            query_as!(Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where target_id = ?;", id).fetch_all(db.acquire().await?).await
         }?;
         let last_reportee: Vec<&Report> = reportee.iter().take(5).collect();
         let last_reported: Vec<&Report> = reported.iter().take(5).collect();

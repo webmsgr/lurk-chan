@@ -24,12 +24,14 @@ pub async fn run(
             ctx,
             audit_log_modal(
                 None,
+                'r',
                 Some(Report {
                     reported_id: user.get().to_string(),
                     reported_name: nick,
                     ..Default::default()
                 }),
                 Location::Discord,
+                None
             ),
         )
         .await?;

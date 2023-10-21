@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into ActionMessages (action_id, message, channel) values (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "f7d902da302ea943206d521d42ae79a873e74518d727d7907bb50aa030d9460b"
+}
