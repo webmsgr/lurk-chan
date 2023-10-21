@@ -19,7 +19,7 @@ use once_cell::sync::Lazy;
 use serenity::builder::CreateMessage;
 use serenity::gateway::ActivityData;
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::{SqlitePool, query, SqliteConnection};
+use sqlx::{SqlitePool};
 use std::collections::HashMap;
 use std::env::var;
 use std::result::Result;

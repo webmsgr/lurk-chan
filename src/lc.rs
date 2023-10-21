@@ -1,4 +1,4 @@
-use sqlx::{SqlitePool, SqliteConnection, pool::PoolConnection, Sqlite, Acquire, Executor};
+use sqlx::{SqlitePool, SqliteConnection};
 use serenity::prelude::TypeMapKey;
 use std::sync::Arc;
 

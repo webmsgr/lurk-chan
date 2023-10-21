@@ -4,7 +4,7 @@ use crate::prefabs::audit_log_modal;
 use crate::report::Report;
 use crate::{commands, LurkChan};
 use serenity::all::EditInteractionResponse;
-use serenity::builder::{CreateInteractionResponseFollowup, CreateMessage, EditMessage, CreateInteractionResponse, CreateInteractionResponseMessage};
+use serenity::builder::{CreateInteractionResponseFollowup, CreateMessage, CreateInteractionResponse, CreateInteractionResponseMessage};
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::query;

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serenity::builder::{CreateEmbedFooter, CreateActionRow, CreateButton};
 use serenity::builder::{CreateEmbed, CreateEmbedAuthor};
 use serenity::client::Context;
-use serenity::model::id::{ChannelId, self};
+use serenity::model::id::{ChannelId};
 use serenity::model::prelude::*;
 use serenity::model::Color;
 use std::env::var;

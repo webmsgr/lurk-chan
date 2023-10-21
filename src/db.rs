@@ -5,8 +5,8 @@ use serenity::builder::EditMessage;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::sqlite::SqliteQueryResult;
-use sqlx::{query, query_as, SqlitePool};
-use std::error::Error;
+use sqlx::{query, query_as};
+
 use std::result::Result;
 use crate::audit::Location;
 use tracing::{error, instrument};
