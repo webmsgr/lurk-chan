@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update Reports set claimant = ?, report_status = 'claimed' where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "dd3e8805a8d4b277835d2f026be23491c082e63459f788c6d95ecf2519f82996"
+}

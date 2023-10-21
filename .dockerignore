@@ -1,0 +1,6 @@
+/target
+lurk_chan.db
+lurk-chan.db-shm
+lurk-chan.db-wal
+.env
+.idea
