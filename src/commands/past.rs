@@ -2,16 +2,16 @@ use std::error::Error;
 use std::future::Future;
 use std::sync::Arc;
 use serenity::all::{CommandInteraction, CommandOptionType, CreateEmbed, Timestamp};
-use serenity::builder::{CreateCommand, CreateCommandOption, CreateInteractionResponse, CreateInteractionResponseMessage, CreateModal, EditInteractionResponse};
+use serenity::builder::{CreateCommand, CreateCommandOption, CreateInteractionResponse, CreateInteractionResponseMessage, EditInteractionResponse};
 use serenity::prelude::*;
 use sqlx::query_as;
-use tracing::info;
+
 use crate::LurkChan;
 use crate::report::ReportStatus;
 use crate::Report;
 use crate::audit::Action;
 use crate::audit::Location;
-use futures::Stream;
+
 pub fn run<'a>(ctx: &'a Context, interaction: &'a CommandInteraction) -> impl Future<Output = Result<(), Box<dyn Error + Send + Sync + 'a>>> + Send + 'a {
     async move {
         interaction.create_response(ctx, CreateInteractionResponse::Defer(CreateInteractionResponseMessage::default().ephemeral(true))).await?;

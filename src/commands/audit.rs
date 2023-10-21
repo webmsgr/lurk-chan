@@ -1,6 +1,6 @@
 use std::error::Error;
 use serenity::all::CommandInteraction;
-use serenity::builder::{CreateCommand, CreateInteractionResponse, CreateInteractionResponseFollowup, CreateInteractionResponseMessage};
+use serenity::builder::{CreateCommand};
 use serenity::prelude::*;
 use crate::audit::Location;
 use crate::prefabs::audit_log_modal;

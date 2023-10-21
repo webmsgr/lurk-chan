@@ -7,10 +7,10 @@ use serenity::prelude::*;
 use sqlx::query;
 use std::collections::HashMap;
 use std::sync::Arc;
-use serenity::builder::{CreateEmbed, CreateInteractionResponseFollowup, CreateInteractionResponseMessage, CreateMessage};
+use serenity::builder::{CreateInteractionResponseFollowup, CreateMessage};
 use tracing::{error, info, instrument};
 use std::result::Result;
-use serenity::all::{CreateInteractionResponse, EditInteractionResponse};
+use serenity::all::{EditInteractionResponse};
 
 pub async fn on_interaction(ctx: Context, interaction: Interaction) {
     if let Some(m) = interaction.as_message_component() {

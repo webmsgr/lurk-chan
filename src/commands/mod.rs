@@ -5,8 +5,8 @@ mod ping;
 mod report;
 mod import;
 
-use serenity::all::{CommandInteraction, CommandType, CreateInteractionResponse, CreateInteractionResponseMessage};
-use serenity::builder::{CreateCommand, CreateCommandOption};
+use serenity::all::{CommandInteraction, CreateInteractionResponse, CreateInteractionResponseMessage};
+use serenity::builder::{CreateCommand};
 use serenity::model::{application, Permissions};
 use serenity::prelude::*;
 use tracing::{error, info, instrument};

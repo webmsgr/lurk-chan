@@ -6,7 +6,7 @@ use serenity::prelude::*;
 use serenity::futures::StreamExt;
 use tracing::info;
 
-use crate::report::{Report, self, ReportStatus};
+use crate::report::{Report, ReportStatus};
 use crate::{report_from_msg, db, LurkChan};
 const OWNER: UserId = UserId::new(171629704959229952);
 

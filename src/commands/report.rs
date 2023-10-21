@@ -1,6 +1,6 @@
 use std::error::Error;
 use serenity::all::{CommandInteraction, CommandOptionType, CreateCommandOption, EditInteractionResponse};
-use serenity::builder::{CreateCommand, CreateInteractionResponse, CreateInteractionResponseMessage};
+use serenity::builder::{CreateCommand};
 use serenity::prelude::*;
 use sqlx::query_as;
 use crate::report::ReportStatus;

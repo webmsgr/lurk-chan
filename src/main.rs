@@ -7,7 +7,7 @@ mod commands;
 mod console;
 
 use async_shutdown::ShutdownManager;
-use serde::{Deserialize, Serialize};
+
 use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;

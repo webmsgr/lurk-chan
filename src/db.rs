@@ -1,12 +1,12 @@
 use crate::report::Report;
 use crate::report::ReportStatus;
-use serenity::builder::{CreateEmbed, CreateMessage, EditMessage};
+use serenity::builder::{EditMessage};
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{query, query_as, Error, SqlitePool};
 use std::result::Result;
-use serenity::futures::stream::BoxStream;
+
 use tracing::{error, instrument};
 pub async fn get_report(
     id: i64,

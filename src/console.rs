@@ -1,9 +1,9 @@
-use std::error::Error;
+
 use std::io::{stdin, IsTerminal};
 use std::thread;
 
 use async_shutdown::ShutdownManager;
-use serenity::model::id::GuildId;
+
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tracing::{error, info, instrument};
 
