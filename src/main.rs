@@ -12,7 +12,7 @@ use db::add_report_message;
 use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
-use tokio::fs::DirEntry;
+
 use tokio::select;
 
 use crate::audit::{DISC_AUDIT, SL_AUDIT};
@@ -21,7 +21,7 @@ use once_cell::sync::Lazy;
 use serenity::builder::CreateMessage;
 use serenity::gateway::ActivityData;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use sqlx::SqlitePool;
+
 use std::collections::HashMap;
 use std::env::var;
 use std::path::PathBuf;

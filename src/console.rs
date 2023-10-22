@@ -4,7 +4,7 @@ use std::thread;
 
 use async_shutdown::ShutdownManager;
 
-use sqlx::Acquire;
+
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tracing::{error, info, instrument};
 
