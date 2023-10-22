@@ -119,6 +119,7 @@ async fn main() {
 #[instrument(skip(lc, s))]
 async fn optimize_db_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
     let mut interval = tokio::time::interval(Duration::from_secs(60*60));
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut db = lc.db().await;
     loop {
         select! {
@@ -139,6 +140,7 @@ async fn optimize_db_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
 #[instrument(skip(lc,s))]
 async fn backup_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
     let mut interval = tokio::time::interval(Duration::from_secs(60*60));
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut db = lc.db().await;
     let backup_folder = PathBuf::from(".").join("backups");
     if !backup_folder.exists() {
@@ -172,8 +174,10 @@ async fn backup_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
                 if let Err(e) = tokio::fs::remove_file(oldest).await {
                     error!("Failed to remove oldest backup: {}", e);
                 }
+                info!("Removed oldest backup")
             }
         }
+        info!("DB backed up")
     }
 }
 
