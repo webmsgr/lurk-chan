@@ -21,7 +21,7 @@ use once_cell::sync::Lazy;
 use serenity::builder::CreateMessage;
 use serenity::gateway::ActivityData;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use sqlx::{SqlitePool};
+use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::env::var;
 use std::path::PathBuf;
@@ -33,7 +33,6 @@ use tracing::{error, info, instrument};
 /// this struct is passed around in an arc to share state
 mod lc;
 pub use lc::LurkChan;
-
 
 #[tokio::main]
 async fn main() {
@@ -54,7 +53,7 @@ async fn main() {
         .min_connections(10)
         .max_connections(100)
         .connect_lazy_with(options);
-        
+
     sqlx::migrate!()
         .run(&db)
         .await
@@ -75,8 +74,16 @@ async fn main() {
             }
         }
     });
-    tokio::task::spawn(shutdown.wrap_delay_shutdown(optimize_db_task(Arc::clone(&lurk_chan), shutdown.clone())).expect("we are not already shutting down"));
-    tokio::task::spawn(shutdown.wrap_delay_shutdown(backup_task(Arc::clone(&lurk_chan), shutdown.clone())).expect("we are not already shutting down"));
+    tokio::task::spawn(
+        shutdown
+            .wrap_delay_shutdown(optimize_db_task(Arc::clone(&lurk_chan), shutdown.clone()))
+            .expect("we are not already shutting down"),
+    );
+    tokio::task::spawn(
+        shutdown
+            .wrap_delay_shutdown(backup_task(Arc::clone(&lurk_chan), shutdown.clone()))
+            .expect("we are not already shutting down"),
+    );
     console::spawn_console(shutdown.clone(), Arc::clone(&lurk_chan));
     let token = var("DISCORD_TOKEN").expect("token");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
@@ -118,7 +125,7 @@ async fn main() {
 
 #[instrument(skip(lc, s))]
 async fn optimize_db_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
-    let mut interval = tokio::time::interval(Duration::from_secs(60*60));
+    let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut db = lc.db().await;
     loop {
@@ -130,16 +137,16 @@ async fn optimize_db_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
         }
         info!("Optimizing DB");
         if let Err(e) = sqlx::query("PRAGMA optimize;").execute(&mut db).await {
-            error!("Failed to optimize DB: {}!", e)    
+            error!("Failed to optimize DB: {}!", e)
         } else {
             info!("DB optimized");
         }
     }
 }
 
-#[instrument(skip(lc,s))]
+#[instrument(skip(lc, s))]
 async fn backup_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
-    let mut interval = tokio::time::interval(Duration::from_secs(60*60));
+    let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut db = lc.db().await;
     let backup_folder = PathBuf::from(".").join("backups");
@@ -159,10 +166,15 @@ async fn backup_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
         info!("Backing up DB");
         let now = Timestamp::now();
         let backup_file = backup_folder.join(format!("backup_{}.db", now.timestamp()));
-        if let Err(e) = sqlx::query(&format!("vacuum into '{}';", backup_file.to_str().expect("path")))
-            .execute(&mut db).await {
-                error!("Failed to backup the DB: {}! this is probably an issue!", e);
-            }
+        if let Err(e) = sqlx::query(&format!(
+            "vacuum into '{}';",
+            backup_file.to_str().expect("path")
+        ))
+        .execute(&mut db)
+        .await
+        {
+            error!("Failed to backup the DB: {}! this is probably an issue!", e);
+        }
         if let Ok(mut rd) = tokio::fs::read_dir("backups").await {
             let mut items = Vec::with_capacity(24);
             while let Ok(Some(i)) = rd.next_entry().await {
@@ -217,7 +229,10 @@ impl EventHandler for Handler {
             data_about_bot.user.name,
             env!("CARGO_PKG_VERSION")
         );
-        ctx.set_activity(Some(ActivityData::watching(format!("for new reports! (v{})", env!("CARGO_PKG_VERSION")))));
+        ctx.set_activity(Some(ActivityData::watching(format!(
+            "for new reports! (v{})",
+            env!("CARGO_PKG_VERSION")
+        ))));
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         interactions::on_interaction(ctx, interaction).await;
@@ -251,23 +266,22 @@ impl EventHandler for Handler {
         // send a whole new message
         let comp = msg_report.components(id);
         let m = new_message
-        .channel_id
-        .send_message(
-            &ctx,
-            CreateMessage::default()
-                .embed(msg_report.create_embed(id))
-                .components(comp),
-        )
-        .await;
-        let m = match m
-        {
+            .channel_id
+            .send_message(
+                &ctx,
+                CreateMessage::default()
+                    .embed(msg_report.create_embed(id))
+                    .components(comp),
+            )
+            .await;
+        let m = match m {
             Ok(m) => m,
             Err(e) => {
                 error!("Failed to send new messgae: {}", e);
                 return;
             }
         };
-        
+
         // insert the message
 
         if !add_report_message(id, m, &mut db).await {

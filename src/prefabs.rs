@@ -53,11 +53,13 @@ pub fn audit_log_modal(
                         .unwrap_or(""),
                 ),
             ),
-            CreateActionRow::InputText(CreateInputText::new(
-                InputTextStyle::Short,
-                "Punishment",
-                "punishment",
-            ).value(prefill_punishment.unwrap_or_else(|| "".to_string()).as_str())),
+            CreateActionRow::InputText(
+                CreateInputText::new(InputTextStyle::Short, "Punishment", "punishment").value(
+                    prefill_punishment
+                        .unwrap_or_else(|| "".to_string())
+                        .as_str(),
+                ),
+            ),
         ]),
     )
 }

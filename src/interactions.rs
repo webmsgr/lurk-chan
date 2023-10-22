@@ -1,10 +1,16 @@
 use crate::audit::{AuditModelResult, Location, DISC_AUDIT, SL_AUDIT};
-use crate::db::{add_action, get_report, update_report_message, add_action_message, get_audit_message_from_report, get_action, update_audit_message};
+use crate::db::{
+    add_action, add_action_message, get_action, get_audit_message_from_report, get_report,
+    update_audit_message, update_report_message,
+};
 use crate::prefabs::audit_log_modal;
 use crate::report::Report;
 use crate::{commands, LurkChan};
 use serenity::all::EditInteractionResponse;
-use serenity::builder::{CreateInteractionResponseFollowup, CreateMessage, CreateInteractionResponse, CreateInteractionResponseMessage};
+use serenity::builder::{
+    CreateInteractionResponse, CreateInteractionResponseFollowup, CreateInteractionResponseMessage,
+    CreateMessage,
+};
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::query;
@@ -61,9 +67,12 @@ async fn on_model(
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
     };
     let mut db = lc.db().await;
-    let mut c =  modl.data.custom_id.chars();
+    let mut c = modl.data.custom_id.chars();
     let s = c.next().expect("Custom id to be present");
-    let id: i64 = c.collect::<String>().parse().expect("Custom id to be a number");
+    let id: i64 = c
+        .collect::<String>()
+        .parse()
+        .expect("Custom id to be a number");
     let u = &modl.user;
     // send relevent message in audit log
     let model_data: HashMap<String, String> = modl
@@ -100,7 +109,7 @@ async fn on_model(
             let a_id = r.last_insert_rowid();
             let comp = action.create_components(a_id);
             let e = action.create_embed(&ctx, a_id).await?;
-            
+
             if let Some(_) = get_audit_message_from_report(id, &mut db, ctx).await? {
                 warn!("Probably a race condition, this is bad!");
                 //m.edit(ctx, EditMessage::default().embed(e).components(comp)).await?;
@@ -110,7 +119,7 @@ async fn on_model(
                     .await?;
                 add_action_message(a_id, m.clone(), &mut db).await;
                 if let Some(id) = report_id {
-                //let mut report_msg = modl.message.clone().unwrap();
+                    //let mut report_msg = modl.message.clone().unwrap();
                     let uid = u.id.get().to_string();
                     let mid = m.id.get().to_string();
                     query!(
@@ -126,7 +135,9 @@ async fn on_model(
             }
         }
         'a' => {
-            let action = get_action(id, &mut db).await?.ok_or_else(|| "No action for id")?;
+            let action = get_action(id, &mut db)
+                .await?
+                .ok_or_else(|| "No action for id")?;
             let mut m_action = model_data.to_action(Some(id), u.id);
             m_action.report = action.report.clone();
             m_action.server = action.server.clone();
@@ -136,13 +147,13 @@ async fn on_model(
             //offense text not null,
             //action text not null,
             let _ = query!("update Actions set target_id = ?, target_username = ?, offense = ?, action = ? where id = ?", 
-                m_action.target_id, 
+                m_action.target_id,
                 m_action.target_username,
                 m_action.offense,
                 m_action.action,
                 id).execute(&mut db).await?;
             let new = serde_json::to_value(&m_action)?;
-            
+
             if old == new {
                 // no change
                 info!("no changes!");
@@ -158,10 +169,10 @@ async fn on_model(
             let changes_str = serde_json::to_string(&changes)?;
             query!("insert into AuditEdits (action_id, old, new, who, time, changes) values (?, ?, ?, ?, ?, ?)", id, old_str, new_str, who, when, changes_str).execute(&mut db).await?;
             update_audit_message(id, &mut db, ctx).await?;
-        },
+        }
         _ => unreachable!(),
     }
-    
+
     modl.edit_response(ctx, EditInteractionResponse::new().content("ok"))
         .await?;
     return Ok(());
@@ -204,8 +215,11 @@ async fn on_interaction_button(
                 Some(Some(v)) => Some(v),
                 _ => None,
             };
-            int.create_response(&ctx, audit_log_modal(Some(id), 'r', report, Location::SL, None))
-                .await?;
+            int.create_response(
+                &ctx,
+                audit_log_modal(Some(id), 'r', report, Location::SL, None),
+            )
+            .await?;
             return Ok(());
             /*if let Err(e) = query!(
                 "update Reports set claimant = ?, report_status = 'closed' where id = ?",
@@ -218,7 +232,7 @@ async fn on_interaction_button(
                 error!("error updating db: {:?}", e);
                 return;
             }*/
-        },
+        }
         "edit" => {
             info!("edit {}", id);
             let action = match get_action(id, &mut db).await.ok() {
@@ -231,10 +245,9 @@ async fn on_interaction_button(
                         ctx,
                         CreateInteractionResponse::Message(
                             CreateInteractionResponseMessage::default()
-                            .content("You can't edit this!")
-                            .ephemeral(true)
-                        )
-        
+                                .content("You can't edit this!")
+                                .ephemeral(true),
+                        ),
                     )
                     .await?;
                     return Ok(());
@@ -245,11 +258,13 @@ async fn on_interaction_button(
                     report_reason: a.offense,
                     ..Default::default()
                 });
-                int.create_response(&ctx, audit_log_modal(Some(id), 'a', r, a.server, Some(a.action)))
+                int.create_response(
+                    &ctx,
+                    audit_log_modal(Some(id), 'a', r, a.server, Some(a.action)),
+                )
                 .await?;
                 return Ok(());
             }
-            
         }
         "forceclose" => {
             int.defer_ephemeral(&ctx).await?;

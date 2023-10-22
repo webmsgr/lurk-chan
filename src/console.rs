@@ -20,7 +20,8 @@ pub fn spawn_console(s: ShutdownManager<&'static str>, lc: Arc<LurkChan>) {
     let s2 = s.clone();
     tokio::task::spawn(async move {
         s.wrap_delay_shutdown(console_process(s2, rx, lc))
-            .expect("failed to create console task").await
+            .expect("failed to create console task")
+            .await
     });
 }
 #[instrument(skip(tx))]
@@ -42,7 +43,11 @@ fn console_thread(tx: UnboundedSender<String>) {
     }
 }
 #[instrument(skip(s, rx, lc))]
-async fn console_process(s: ShutdownManager<&'static str>, mut rx: UnboundedReceiver<String>, lc: Arc<LurkChan>) {
+async fn console_process(
+    s: ShutdownManager<&'static str>,
+    mut rx: UnboundedReceiver<String>,
+    lc: Arc<LurkChan>,
+) {
     loop {
         tokio::select! {
             _ = s.wait_shutdown_triggered() => {
@@ -123,7 +128,7 @@ async fn console_process(s: ShutdownManager<&'static str>, mut rx: UnboundedRece
                                 error!("Error getting DB Health: {}", e);
                             }
                         }
-                        
+
                     },
                     Err(e) => {
                         let is_err = e.use_stderr();
@@ -157,5 +162,5 @@ enum Commands {
     /// we do this automatically, so this really isnt needed
     Backup,
     /// Vaccums the DB
-    Vacuum
+    Vacuum,
 }

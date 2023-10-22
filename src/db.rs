@@ -7,8 +7,8 @@ use serenity::prelude::*;
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{query, query_as};
 
-use std::result::Result;
 use crate::audit::Location;
+use std::result::Result;
 use tracing::{error, instrument};
 pub async fn get_report(
     id: i64,
@@ -18,13 +18,19 @@ pub async fn get_report(
     Ok(r)
 }
 
-
-pub async fn get_action(id: i64, db: &mut DBConn) -> Result<Option<crate::audit::Action>, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn get_action(
+    id: i64,
+    db: &mut DBConn,
+) -> Result<Option<crate::audit::Action>, Box<dyn std::error::Error + Send + Sync>> {
     let r = query_as!(crate::audit::Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where id = ?", id).fetch_optional(db).await?;
     Ok(r)
 }
 #[must_use]
-pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn update_report_message(
+    id: i64,
+    db: &mut DBConn,
+    ctx: &Context,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let report = match get_report(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {
@@ -37,19 +43,22 @@ pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &Context) -> R
     };
     let mut m = get_report_message_from_id(id, db, ctx).await?;
     let comp = report.components(id);
-    m
-        .edit(
-            &ctx,
-            EditMessage::default()
-                .embed(report.create_embed(id))
-                .components(comp),
-        )
-        .await?;
+    m.edit(
+        &ctx,
+        EditMessage::default()
+            .embed(report.create_embed(id))
+            .components(comp),
+    )
+    .await?;
     Ok(())
 }
 
 #[must_use]
-pub async fn update_audit_message(id: i64, db: &mut DBConn, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn update_audit_message(
+    id: i64,
+    db: &mut DBConn,
+    ctx: &Context,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let action = match get_action(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {
@@ -71,12 +80,7 @@ pub async fn update_audit_message(id: i64, db: &mut DBConn, ctx: &Context) -> Re
     let comp = action.create_components(id);
     let embed = action.create_embed(ctx, id).await?;
     let _ = m
-        .edit(
-            &ctx,
-            EditMessage::default()
-                .embed(embed)
-                .components(comp),
-        )
+        .edit(&ctx, EditMessage::default().embed(embed).components(comp))
         .await?;
     Ok(())
 }
@@ -119,66 +123,95 @@ pub async fn add_action(
             ).execute(db).await
 }
 
-
 pub async fn add_report_message(id: i64, message: Message, db: &mut DBConn) -> bool {
     let mid = message.id.get().to_string();
     let cid = message.channel_id.get().to_string();
-    query!("insert into ReportMessages (report_id, message, channel) values (?, ?, ?)",
+    query!(
+        "insert into ReportMessages (report_id, message, channel) values (?, ?, ?)",
         id,
         mid,
         cid
-    ).execute(db).await.is_ok()
+    )
+    .execute(db)
+    .await
+    .is_ok()
 }
-
 
 pub async fn add_action_message(id: i64, message: Message, db: &mut DBConn) -> bool {
     let mid = message.id.get().to_string();
     let cid = message.channel_id.get().to_string();
-    query!("insert into ActionMessages (action_id, message, channel) values (?, ?, ?)",
+    query!(
+        "insert into ActionMessages (action_id, message, channel) values (?, ?, ?)",
         id,
         mid,
         cid
-    ).execute(db).await.is_ok()
+    )
+    .execute(db)
+    .await
+    .is_ok()
 }
 
-pub async fn get_report_message_from_id(rid: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> Result<Message, Box<dyn std::error::Error + Send + Sync>> {
-    let rec = query!("select message, channel from ReportMessages where report_id = ?;", rid).fetch_one(db).await?;
+pub async fn get_report_message_from_id(
+    rid: i64,
+    db: &mut DBConn,
+    ctx: &impl CacheHttp,
+) -> Result<Message, Box<dyn std::error::Error + Send + Sync>> {
+    let rec = query!(
+        "select message, channel from ReportMessages where report_id = ?;",
+        rid
+    )
+    .fetch_one(db)
+    .await?;
     let m = MessageId::new(rec.message.parse::<u64>().expect("Message ID to be a u64"));
     let c = ChannelId::new(rec.channel.parse::<u64>().expect("Channel ID to be a u64"));
     let m = c.message(ctx, m).await?;
     Ok(m)
 }
 
-
-
-pub async fn get_audit_message_from_id(rid: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> Result<Message, Box<dyn std::error::Error + Send + Sync>> {
-    let rec = query!("select message, channel from ActionMessages where action_id = ?;", rid).fetch_one(db).await?;
+pub async fn get_audit_message_from_id(
+    rid: i64,
+    db: &mut DBConn,
+    ctx: &impl CacheHttp,
+) -> Result<Message, Box<dyn std::error::Error + Send + Sync>> {
+    let rec = query!(
+        "select message, channel from ActionMessages where action_id = ?;",
+        rid
+    )
+    .fetch_one(db)
+    .await?;
     let m = MessageId::new(rec.message.parse::<u64>().expect("Message ID to be a u64"));
     let c = ChannelId::new(rec.channel.parse::<u64>().expect("Channel ID to be a u64"));
     let m = c.message(ctx, m).await?;
     Ok(m)
 }
 
-
-pub async fn get_audit_message_from_report(rid: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> Result<Option<Message>, Box<dyn std::error::Error + Send + Sync>>{
+pub async fn get_audit_message_from_report(
+    rid: i64,
+    db: &mut DBConn,
+    ctx: &impl CacheHttp,
+) -> Result<Option<Message>, Box<dyn std::error::Error + Send + Sync>> {
     // get the report
     let rep = get_report(rid, db).await?;
     let rep = match rep {
         Some(r) => r,
-        None => return Ok(None)
+        None => return Ok(None),
     };
     if let Some(e) = rep.audit {
-        let rec = query!("select message, channel from ActionMessages where message = ?;", e).fetch_optional(db).await?;
+        let rec = query!(
+            "select message, channel from ActionMessages where message = ?;",
+            e
+        )
+        .fetch_optional(db)
+        .await?;
         if let Some(r) = rec {
             let m = MessageId::new(r.message.parse::<u64>().expect("Message ID to be a u64"));
             let c = ChannelId::new(r.channel.parse::<u64>().expect("Channel ID to be a u64"));
             let m = c.message(ctx, m).await?;
             Ok(Some(m))
         } else {
-            return Ok(None)
+            return Ok(None);
         }
     } else {
-        return Ok(None)
+        return Ok(None);
     }
-    
 }

@@ -1,9 +1,9 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use serenity::builder::{CreateEmbedFooter, CreateActionRow, CreateButton};
+use serenity::builder::{CreateActionRow, CreateButton, CreateEmbedFooter};
 use serenity::builder::{CreateEmbed, CreateEmbedAuthor};
 use serenity::client::Context;
-use serenity::model::id::{ChannelId};
+use serenity::model::id::ChannelId;
 use serenity::model::prelude::*;
 use serenity::model::Color;
 use std::env::var;
@@ -96,8 +96,11 @@ impl Action {
             })))
     }
     pub fn create_components(&self, id: i64) -> Vec<CreateActionRow> {
-        vec![CreateActionRow::Buttons(vec![
-            CreateButton::new(format!("edit_{}", id)).label("Edit").style(ButtonStyle::Secondary)
-        ])]
+        vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
+            "edit_{}",
+            id
+        ))
+        .label("Edit")
+        .style(ButtonStyle::Secondary)])]
     }
 }

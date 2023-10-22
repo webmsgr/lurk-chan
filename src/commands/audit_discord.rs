@@ -31,7 +31,7 @@ pub async fn run(
                     ..Default::default()
                 }),
                 Location::Discord,
-                None
+                None,
             ),
         )
         .await?;

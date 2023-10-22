@@ -7,9 +7,9 @@ use serenity::all::{
 use serenity::builder::CreateCommand;
 use serenity::prelude::*;
 use sqlx::query_as;
+use sqlx::Acquire;
 use std::error::Error;
 use std::sync::Arc;
-use sqlx::Acquire;
 pub async fn run(
     ctx: &Context,
     interaction: &CommandInteraction,
