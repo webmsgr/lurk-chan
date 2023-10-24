@@ -51,7 +51,7 @@ pub async fn run_command(ctx: &Context, interact: &CommandInteraction) {
         "judgement" => judgement::run(ctx, interact).await,
         _ => Err(anyhow!("Unknown command! {}", interact.data.name)),
     } {
-        error!("Error running command {}: {}", interact.data.name, e)
+        error!("Error running command {}: {:?}", interact.data.name, e)
     }
 }
 

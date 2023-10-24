@@ -24,7 +24,7 @@ use tracing::{error, info, instrument, warn};
 pub async fn on_interaction(ctx: Context, interaction: Interaction) {
     if let Some(m) = interaction.as_message_component() {
         if let Err(e) = on_interaction_button(&ctx, m).await {
-            error!("Ruh roh, an error on button! {} !", e);
+            error!("Ruh roh, an error on button! {:?}!", e);
             let _ = m
                 .create_followup(
                     &ctx,
@@ -38,7 +38,7 @@ pub async fn on_interaction(ctx: Context, interaction: Interaction) {
     } else if let Some(modl) = interaction.as_modal_submit() {
         //let _ = modl.defer_ephemeral(&ctx).await;
         if let Err(e) = on_model(&ctx, modl).await {
-            error!("Ruh roh, an error on_model! {} !", e);
+            error!("Ruh roh, an error on_model! {:?}!", e);
             let _ = modl
                 .create_followup(
                     &ctx,

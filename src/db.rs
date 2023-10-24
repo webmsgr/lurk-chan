@@ -26,8 +26,8 @@ pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &Context) -> a
     let report = match get_report(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {
-            error!("No report for: {}", id);
-            return Err(anyhow!("No report for id"));
+            //error!("No report for: {}", id);
+            return Err(anyhow!("No report for id: {}",id));
         }
         Err(e) => {
             return Err(e);
@@ -50,19 +50,19 @@ pub async fn update_audit_message(id: i64, db: &mut DBConn, ctx: &Context) -> an
     let action = match get_action(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {
-            error!("No action for: {}", id);
-            return Err(anyhow!("No action for id"));
+            //error!("No action for: {}", id);
+            return Err(anyhow!("No action for id: {}", id));
         }
         Err(e) => {
-            error!("Error while fetching action for interaction: {}", e);
-            return Err(e);
+            //error!("Error while fetching action for interaction: {}", e);
+            return Err(e).context("Error while fetching action for interaction");
         }
     };
     let mut m = match get_audit_message_from_id(id, db, ctx).await {
         Ok(m) => m,
         Err(e) => {
-            error!("Error while fetching message for interaction: {}", e);
-            return Err(e);
+            //error!("Error while fetching message for interaction: {}", e);
+            return Err(e).context("Error while fetching message for interaction");
         }
     };
     let comp = action.create_components(id, db).await;
