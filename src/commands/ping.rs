@@ -8,7 +8,7 @@ use std::error::Error;
 pub async fn run(
     ctx: &Context,
     interaction: &CommandInteraction,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> anyhow::Result<()> {
     interaction
         .create_response(
             ctx,

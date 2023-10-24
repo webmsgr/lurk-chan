@@ -18,7 +18,7 @@ use crate::Report;
 pub fn run<'a>(
     ctx: &'a Context,
     interaction: &'a CommandInteraction,
-) -> impl Future<Output = Result<(), Box<dyn Error + Send + Sync + 'a>>> + Send + 'a {
+) -> impl Future<Output = anyhow::Result<()>> + Send + 'a {
     async move {
         interaction
             .create_response(
@@ -42,36 +42,42 @@ pub fn run<'a>(
             .value
             .as_str()
             .expect("Value to be a string");
-        let reportee = {
-            query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reporter_id = ? order by time desc", id).fetch_all(db.acquire().await?).await
-        }?;
-        let reported = {
-            query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reported_id = ? order by time desc", id).fetch_all(db.acquire().await?).await
-        }?;
-        let actions = {
-            query_as!(Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where target_id = ?;", id).fetch_all(db.acquire().await?).await
-        }?;
-        let last_reportee: Vec<&Report> = reportee.iter().take(5).collect();
-        let last_reported: Vec<&Report> = reported.iter().take(5).collect();
-        let last_actions: Vec<&Action> = actions.iter().take(5).collect();
+        let (reportee, reportee_count) = {
+            (
+                query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reporter_id = ? order by time desc limit 5", id).fetch_all(&mut db).await?,
+                sqlx::query!("select count(*) as \"count\" from Reports where reporter_id = ?", id).fetch_one(&mut db).await?.count
+            )
+        };
+        let (reported, reported_count) = {
+            (
+                query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reported_id = ? order by time desc limit 5", id).fetch_all(&mut db).await?,
+                sqlx::query!("select count(*) as \"count\" from Reports where reporter_id = ?", id).fetch_one(&mut db).await?.count
+            )
+        };
+        let (actions, actions_count) = {
+            (
+                query_as!(Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where target_id = ? limit 5;", id).fetch_all(&mut db).await?,
+                sqlx::query!("select count(*) as \"count\" from Actions where target_id = ?", id).fetch_one(&mut db).await?.count
+            )
+        };
 
         //generate the modal
 
         let modal: CreateEmbed = CreateEmbed::new()
         .title(format!("{}'s past...", id))
-        .description(format!("{} has been:\n- Reported {} time(s)\n- Reported someone {} time(s)\n- Had action taken against them {} time(s)",id, reported.len(), reportee.len(), actions.len()))
+        .description(format!("{} has been:\n- Reported {} time(s)\n- Reported someone {} time(s)\n- Had action taken against them {} time(s)",id, reported_count, reportee_count, actions_count))
         .field("Recent reported", {
-            last_reported.into_iter().map(|i| {
+            reportee.into_iter().map(|i| {
                 format!("- Reported by {} on <t:{}:f> for '{}' ({})\n", i.reporter_name, i.time.parse::<Timestamp>().expect("invalid timestamp").timestamp(), i.report_reason, i.report_status_string())
             }).collect::<String>()
         }, false)
         .field("Recent reports", {
-            last_reportee.into_iter().map(|i| {
+            reported.into_iter().map(|i| {
                 format!("- Reported {} on <t:{}:f> for '{}' ({})\n", i.reported_name, i.time.parse::<Timestamp>().expect("invalid timestamp").timestamp(), i.report_reason, i.report_status_string())
             }).collect::<String>()
         }, false)
         .field("Recent action", {
-            last_actions.into_iter().map(|i| {
+            actions.into_iter().map(|i| {
                 format!("- '{}' for '{}' by <@!{}> ({})\n", i.action, i.offense, i.claimant, i.report.and_then(|o| Some(o.to_string())).unwrap_or_else(|| "No report".to_string()))
             }).collect::<String>()
         }, false);

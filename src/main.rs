@@ -7,8 +7,9 @@ mod prefabs;
 mod report;
 
 use async_shutdown::ShutdownManager;
-
-use db::add_report_message;
+use anyhow::Context as anyhow_context;
+use autorespond::message;
+use db::{add_report_message, update_audit_message};
 use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
@@ -30,8 +31,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info, instrument};
 
+mod autorespond;
 /// this struct is passed around in an arc to share state
 mod lc;
+
 pub use lc::LurkChan;
 
 #[tokio::main]
@@ -84,15 +87,17 @@ async fn main() {
             .wrap_delay_shutdown(backup_task(Arc::clone(&lurk_chan), shutdown.clone()))
             .expect("we are not already shutting down"),
     );
-    console::spawn_console(shutdown.clone(), Arc::clone(&lurk_chan));
+
     let token = var("DISCORD_TOKEN").expect("token");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
+    let lc = Arc::clone(&lurk_chan);
     let mut client = Client::builder(token, intents)
         .type_map_insert::<LurkChan>(lurk_chan)
         .event_handler(Handler)
         .await
         .expect("Failed to create client");
     let ctx = (client.cache.clone(), client.http.clone());
+    console::spawn_console(shutdown.clone(), lc, (ctx.0, ctx.1));
     let shard_manager = client.shard_manager.clone();
     tokio::task::spawn(shutdown.wrap_trigger_shutdown("Client died", async move {
         if let Err(c) = client.start_autosharded().await {
@@ -107,14 +112,14 @@ async fn main() {
             shard_manager.shutdown_all().await;
         })
         .expect("failed to do the thing");
-    tokio::task::spawn(async move {
+    /*tokio::task::spawn(async move {
         let new_ctx = (&ctx.0, ctx.1.http());
         while ctx.1.application_id().is_none() {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
         info!("Creating commands...");
         commands::register_commands(&new_ctx).await;
-    });
+    });*/
     let reason = shutdown_future.await;
     info!("Shutting down! Reason: {}", reason);
 
@@ -146,7 +151,7 @@ async fn optimize_db_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
 
 #[instrument(skip(lc, s))]
 async fn backup_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
-    let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
+    let mut interval = tokio::time::interval(Duration::from_secs(6 * 60 * 60));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut db = lc.db().await;
     let backup_folder = PathBuf::from(".").join("backups");
@@ -181,9 +186,9 @@ async fn backup_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
                 items.push(i)
             }
             items.sort_by_cached_key(|v| v.file_name());
-            if items.len() > 24 {
+            if items.len() > 7 * 4 {
                 let oldest = items[0].file_name();
-                if let Err(e) = tokio::fs::remove_file(oldest).await {
+                if let Err(e) = tokio::fs::remove_file(backup_folder.join(oldest)).await {
                     error!("Failed to remove oldest backup: {}", e);
                 }
                 info!("Removed oldest backup")
@@ -195,9 +200,7 @@ async fn backup_task(lc: Arc<LurkChan>, s: ShutdownManager<&'static str>) {
 
 struct Handler;
 
-pub fn report_from_msg(
-    msg: &Message,
-) -> Result<Option<Report>, Box<dyn std::error::Error + Send + Sync>> {
+pub fn report_from_msg(msg: &Message) -> anyhow::Result<Option<Report>> {
     if let Some(embed) = msg.embeds.get(0) {
         if embed.title.as_deref() != Some("Player Report") {
             return Ok(None);
@@ -239,59 +242,64 @@ impl EventHandler for Handler {
     }
     #[instrument(skip(ctx, new_message, self))]
     async fn message(&self, ctx: Context, new_message: Message) {
-        let r = match report_from_msg(&new_message) {
-            Ok(Some(r)) => r,
-            Err(e) => {
-                error!("Error parsing report: {}", e);
-                return;
-            }
-            _ => return,
-        };
-        let msg_report = r.clone();
-        // insert the report in the database
-        let lc = {
-            let data = ctx.data.read().await;
-            Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
-        };
-        let mut db = lc.db().await;
-        let q = db::add_report(r, &mut db).await;
-        let id = match q {
-            Ok(res) => res.last_insert_rowid(),
-            Err(err) => {
-                error!("Error inserting cheater report: {}", err);
-                return;
-            }
-        };
-
-        // send a whole new message
-        let comp = msg_report.components(id);
-        let m = new_message
-            .channel_id
-            .send_message(
-                &ctx,
-                CreateMessage::default()
-                    .embed(msg_report.create_embed(id))
-                    .components(comp),
-            )
-            .await;
-        let m = match m {
-            Ok(m) => m,
-            Err(e) => {
-                error!("Failed to send new messgae: {}", e);
-                return;
-            }
-        };
-
-        // insert the message
-
-        if !add_report_message(id, m, &mut db).await {
-            error!("Failed to insert message into database, this isn't fatal but its bad!");
-        }
-
-        // delete the old message
-        if let Err(e) = new_message.delete(&ctx).await {
-            error!("Failed to delete old message: {}", e);
-            return;
+        if let Err(e) = on_message(ctx, new_message).await {
+            error!("Error handling message: {}", e);
         }
     }
+}
+
+async fn on_message(ctx: Context, new_message: Message) -> anyhow::Result<()> {
+    // talking
+    if !new_message.is_own(&ctx)
+        && new_message
+            .mentions
+            .iter()
+            .any(|i| i.id == ctx.cache.current_user().id)
+    {
+        // this is a ping of us.
+        new_message.reply(&ctx, message()).await.context("Failed to reply to the user!")?;
+        return Ok(());
+    }
+    // locker
+
+    /*let locker_entries = try_get_lockers_from_msg(&new_message);
+    if !locker_entries.is_empty() {
+    //info!("Found {} locker entries in message: {:#?}", locker_entries.len(), locker_entries);
+    new_message.reply(&ctx, format!("```\n{:#?}```", locker_entries)).await;
+    }*/
+
+    // report
+    let r = if let Some(i) = report_from_msg(&new_message).context("Error parsing report")? {
+        i
+    } else {
+        return Ok(())
+    };
+    let msg_report = r.clone();
+    // insert the report in the database
+    let lc = {
+        let data = ctx.data.read().await;
+        Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
+    };
+    let mut db = lc.db().await;
+    let id = db::add_report(r, &mut db).await.context("Error inserting cheater report")?.last_insert_rowid();
+    // send a whole new message
+    let comp = msg_report.components(id);
+    let m = new_message
+        .channel_id
+        .send_message(
+            &ctx,
+            CreateMessage::default()
+                .embed(msg_report.create_embed(id, &mut db).await)
+                .components(comp),
+        )
+        .await.context("Failed to send new message")?;
+
+    // insert the message
+
+    add_report_message(id, m, &mut db).await?;
+
+    // delete the old message
+    new_message.delete(&ctx).await.context("Failed to delete old message")?;
+        
+    Ok(())
 }

@@ -4,12 +4,17 @@ use std::thread;
 
 use async_shutdown::ShutdownManager;
 
-
+use serenity::client::Cache;
+use serenity::prelude::CacheHttp;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tracing::{error, info, instrument};
 
-#[instrument(skip(s, lc))]
-pub fn spawn_console(s: ShutdownManager<&'static str>, lc: Arc<LurkChan>) {
+#[instrument(skip(s, lc, ctx))]
+pub fn spawn_console(
+    s: ShutdownManager<&'static str>,
+    lc: Arc<LurkChan>,
+    ctx: (Arc<Cache>, Arc<serenity::http::Http>),
+) {
     let dead_token = s.trigger_shutdown_token("Console thread died.");
     let (tx, rx) = unbounded_channel();
     thread::spawn(move || {
@@ -19,7 +24,7 @@ pub fn spawn_console(s: ShutdownManager<&'static str>, lc: Arc<LurkChan>) {
     });
     let s2 = s.clone();
     tokio::task::spawn(async move {
-        s.wrap_delay_shutdown(console_process(s2, rx, lc))
+        s.wrap_delay_shutdown(console_process(s2, rx, lc, ctx))
             .expect("failed to create console task")
             .await
     });
@@ -42,12 +47,14 @@ fn console_thread(tx: UnboundedSender<String>) {
         }
     }
 }
-#[instrument(skip(s, rx, lc))]
+#[instrument(skip(s, rx, lc, r_ctx))]
 async fn console_process(
     s: ShutdownManager<&'static str>,
     mut rx: UnboundedReceiver<String>,
     lc: Arc<LurkChan>,
+    r_ctx: (Arc<Cache>, Arc<serenity::http::Http>),
 ) {
+    let ctx = (&r_ctx.0, r_ctx.1.http());
     loop {
         tokio::select! {
             _ = s.wait_shutdown_triggered() => {
@@ -79,6 +86,9 @@ async fn console_process(
                             info!("DB backed up!");
                         }
                     },
+                    Ok(Commands::Register) => {
+                        crate::commands::register_commands(&ctx).await;
+                    }
                     Ok(Commands::Vacuum) => {
                         let mut db = lc.db().await;
                         if let Err(e) = sqlx::query("VACUUM").execute(&mut db).await {
@@ -163,4 +173,6 @@ enum Commands {
     Backup,
     /// Vaccums the DB
     Vacuum,
+    /// reregisters commands
+    Register,
 }

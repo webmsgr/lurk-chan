@@ -13,7 +13,7 @@ use std::sync::Arc;
 pub async fn run(
     ctx: &Context,
     interaction: &CommandInteraction,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> anyhow::Result<()> {
     interaction.defer_ephemeral(ctx).await?;
     let lc = {
         let data = ctx.data.read().await;
@@ -34,7 +34,7 @@ pub async fn run(
         interaction
             .edit_response(
                 &ctx,
-                EditInteractionResponse::new().embed(r.create_embed(id)),
+                EditInteractionResponse::new().embed(r.create_embed(id, &mut db).await),
             )
             .await?;
     } else {

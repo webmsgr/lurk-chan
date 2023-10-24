@@ -4,6 +4,7 @@ use serenity::builder::{CreateActionRow, CreateButton, CreateEmbed, CreateEmbedA
 use serenity::model::prelude::*;
 //use serenity::mde::Color;
 use crate::audit::SL_AUDIT;
+use crate::lc::DBConn;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Report {
@@ -30,7 +31,8 @@ pub struct Report {
 }
 
 impl Report {
-    pub fn create_embed(self, report_id: i64) -> CreateEmbed {
+    pub async fn create_embed(self, report_id: i64, db: &mut DBConn) -> CreateEmbed {
+        let report_count = sqlx::query!("select count(*) as \"count\" from Reports where reported_id = ?", self.reported_id).fetch_one(db).await.unwrap().count;
         let rs = self.report_status_string();
         CreateEmbed::default()
             .title(format!("Report #{}", report_id))
@@ -52,8 +54,9 @@ impl Report {
                 CreateEmbedAuthor::new(self.server).icon_url("https://i.imgur.com/4jVFfFM.webp"),
             )
             .footer(CreateEmbedFooter::new(format!(
-                "/past {}",
-                self.reported_id
+                "`/past id:{}` (has been reported {} times)",
+                self.reported_id,
+                report_count
             )))
             .timestamp(
                 self.time
@@ -89,17 +92,12 @@ impl Report {
     }
     pub fn components(&self, id: i64) -> Vec<CreateActionRow> {
         let i: Option<CreateActionRow> = match self.report_status {
-            ReportStatus::Open => Some(CreateActionRow::Buttons(vec![
-                CreateButton::new(format!("claim_{}", id))
-                    .label("Claim")
-                    .style(ButtonStyle::Primary),
-                CreateButton::new(format!("close_{}", id))
-                    .label("Close")
-                    .style(ButtonStyle::Primary),
-                CreateButton::new(format!("forceclose_{}", id))
-                    .label("Close without action")
-                    .style(ButtonStyle::Danger),
-            ])),
+            ReportStatus::Open => Some(CreateActionRow::Buttons(vec![CreateButton::new(format!(
+                "claim_{}",
+                id
+            ))
+            .label("Claim")
+            .style(ButtonStyle::Primary)])),
             ReportStatus::Claimed => Some(CreateActionRow::Buttons(vec![
                 CreateButton::new(format!("close_{}", id))
                     .label("Close")

@@ -15,7 +15,7 @@ const OWNER: UserId = UserId::new(171629704959229952);
 pub async fn run(
     ctx: &Context,
     interaction: &CommandInteraction,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> anyhow::Result<()> {
     if interaction.user.id != OWNER {
         interaction
             .create_response(

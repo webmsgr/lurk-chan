@@ -1,5 +1,5 @@
 use crate::audit::Location;
-use crate::prefabs::audit_log_modal;
+use crate::prefabs::{audit_log_modal, AutofillAuditLog};
 use crate::report::Report;
 use serenity::all::{CommandInteraction, CommandOptionType, CommandType};
 use serenity::builder::{CreateCommand, CreateCommandOption};
@@ -9,14 +9,19 @@ use std::error::Error;
 pub async fn run(
     ctx: &Context,
     interaction: &CommandInteraction,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let (user, u) = interaction
-        .data
-        .resolved
-        .users
-        .iter()
-        .next()
-        .expect("Failed to get user");
+) -> anyhow::Result<()> {
+    let (user, u, message) = if let Some(i) = interaction.data.resolved.users.iter().next() {
+        (i.0, i.1, None)
+    } else {
+        interaction
+            .data
+            .resolved
+            .messages
+            .iter()
+            .next()
+            .map(|m| (&m.1.author.id, &m.1.author, Some(m.1)))
+            .expect("If no user, then message")
+    };
     //let user = interaction.data.options.get(0).expect("a user to be provided").value.as_user_id().expect("a user to be a user");
     let nick = u.global_name.as_ref().unwrap_or_else(|| &u.name).clone();
     interaction
@@ -25,13 +30,13 @@ pub async fn run(
             audit_log_modal(
                 None,
                 'r',
-                Some(Report {
-                    reported_id: user.get().to_string(),
-                    reported_name: nick,
+                Some(AutofillAuditLog {
+                    location: Location::Discord,
+                    id: Some(user.to_string()),
+                    name: Some(nick),
+                    offense: message.map(|m| m.link()),
                     ..Default::default()
                 }),
-                Location::Discord,
-                None,
             ),
         )
         .await?;
@@ -42,7 +47,14 @@ pub async fn run(
 pub mod user {
     use super::*;
     pub fn register() -> CreateCommand {
-        CreateCommand::new("discord_audit")/*.description("Create a new audit log entry for a discord user")*/.kind(CommandType::User)
+        CreateCommand::new("Audit User")/*.description("Create a new audit log entry for a discord user")*/.kind(CommandType::User)
+    }
+}
+
+pub mod message {
+    use super::*;
+    pub fn register() -> CreateCommand {
+        CreateCommand::new("Audit Message")/*.description("Create a new audit log entry for a discord user")*/.kind(CommandType::Message)
     }
 }
 

@@ -4,7 +4,8 @@ mod import;
 mod past;
 mod ping;
 mod report;
-
+mod judgement;
+use anyhow::anyhow;
 use serenity::all::{
     CommandInteraction, CreateInteractionResponse, CreateInteractionResponseMessage,
 };
@@ -43,11 +44,12 @@ pub async fn run_command(ctx: &Context, interact: &CommandInteraction) {
     if let Err(e) = match interact.data.name.as_str() {
         "ping" => ping::run(ctx, interact).await,
         "audit" => audit::run(ctx, interact).await,
-        "discord" | "discord_audit" => audit_discord::run(ctx, interact).await,
+        "discord" | "Audit Message" | "Audit User" => audit_discord::run(ctx, interact).await,
         "past" => past::run(ctx, interact).await,
         "report" => report::run(ctx, interact).await,
         "import" => import::run(ctx, interact).await,
-        _ => Err("Unknown command!".into()),
+        "judgement" => judgement::run(ctx, interact).await,
+        _ => Err(anyhow!("Unknown command! {}", interact.data.name)),
     } {
         error!("Error running command {}: {}", interact.data.name, e)
     }
@@ -84,17 +86,23 @@ macro_rules! command {
 }
 #[instrument(skip(ctx))]
 pub async fn register_commands(ctx: &impl CacheHttp) {
-    /*let commands = application::Command::get_global_commands(ctx.http()).await.unwrap();
+    let commands = application::Command::get_global_commands(ctx.http())
+        .await
+        .unwrap();
     for command in commands {
         info!("Unregistering command {}", command.name);
-        application::Command::delete_global_command(ctx.http(), command.id).await.unwrap();
-    }*/
+        application::Command::delete_global_command(ctx.http(), command.id)
+            .await
+            .unwrap();
+    }
     command!(ctx, ping);
     command!(ctx, audit);
     command!(ctx, audit_discord, user);
     command!(ctx, audit_discord, slash);
+    command!(ctx, audit_discord, message);
     command!(ctx, past);
     command!(ctx, report);
     command!(ctx, import);
+    command!(ctx, judgement);
     info!("All commands registered!")
 }

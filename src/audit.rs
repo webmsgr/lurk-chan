@@ -9,6 +9,8 @@ use serenity::model::Color;
 use std::env::var;
 use std::result::Result;
 
+use crate::lc::DBConn;
+
 pub static SL_AUDIT: Lazy<ChannelId> = Lazy::new(|| var("SL_AUDIT").unwrap().parse().unwrap());
 pub static DISC_AUDIT: Lazy<ChannelId> = Lazy::new(|| var("DISC_AUDIT").unwrap().parse().unwrap());
 
@@ -63,13 +65,13 @@ impl Action {
         self,
         ctx: &Context,
         id: i64,
-    ) -> Result<CreateEmbed, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> anyhow::Result<CreateEmbed> {
         let c: UserId = self.claimant.parse()?;
         let g = SL_AUDIT
             .to_channel(ctx)
             .await?
             .guild()
-            .ok_or_else(|| "fuck")?
+            .ok_or_else(|| anyhow::anyhow!("fuck"))?
             .guild(ctx)
             .unwrap()
             .id;
@@ -89,13 +91,13 @@ impl Action {
             .field("Action", self.action, false)
             .footer(CreateEmbedFooter::new({
                 if let Some(r) = self.report {
-                    format!("/report {}", r)
+                    format!("/report report_id:{}", r)
                 } else {
                     "No report".to_string()
                 }
             })))
     }
-    pub fn create_components(&self, id: i64) -> Vec<CreateActionRow> {
+    pub async fn create_components(&self, id: i64, db: &mut DBConn) -> Vec<CreateActionRow> {
         vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
             "edit_{}",
             id
