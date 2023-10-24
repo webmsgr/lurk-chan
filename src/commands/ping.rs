@@ -5,10 +5,7 @@ use serenity::builder::{
 use serenity::prelude::*;
 use std::error::Error;
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-) -> anyhow::Result<()> {
+pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     interaction
         .create_response(
             ctx,

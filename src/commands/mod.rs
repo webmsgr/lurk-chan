@@ -1,10 +1,10 @@
 mod audit;
 mod audit_discord;
 mod import;
+mod judgement;
 mod past;
 mod ping;
 mod report;
-mod judgement;
 use anyhow::anyhow;
 use serenity::all::{
     CommandInteraction, CreateInteractionResponse, CreateInteractionResponseMessage,

@@ -10,10 +10,7 @@ use sqlx::query_as;
 use sqlx::Acquire;
 use std::error::Error;
 use std::sync::Arc;
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-) -> anyhow::Result<()> {
+pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     interaction.defer_ephemeral(ctx).await?;
     let lc = {
         let data = ctx.data.read().await;

@@ -1,8 +1,8 @@
 use crate::lc::DBConn;
 use crate::report::Report;
 use crate::report::ReportStatus;
-use anyhow::Context as ctxtrait;
 use anyhow::anyhow;
+use anyhow::Context as ctxtrait;
 use serenity::builder::EditMessage;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
@@ -12,27 +12,17 @@ use sqlx::{query, query_as};
 use crate::audit::Location;
 //use std::result::Result;
 use tracing::{error, instrument};
-pub async fn get_report(
-    id: i64,
-    db: &mut DBConn,
-) -> anyhow::Result<Option<Report>> {
+pub async fn get_report(id: i64, db: &mut DBConn) -> anyhow::Result<Option<Report>> {
     let r = query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where id = ?", id).fetch_optional(db).await?;
     Ok(r)
 }
 
-pub async fn get_action(
-    id: i64,
-    db: &mut DBConn,
-) -> anyhow::Result<Option<crate::audit::Action>> {
+pub async fn get_action(id: i64, db: &mut DBConn) -> anyhow::Result<Option<crate::audit::Action>> {
     let r = query_as!(crate::audit::Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where id = ?", id).fetch_optional(db).await?;
     Ok(r)
 }
 #[must_use]
-pub async fn update_report_message(
-    id: i64,
-    db: &mut DBConn,
-    ctx: &Context,
-) -> anyhow::Result<()> {
+pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &Context) -> anyhow::Result<()> {
     let report = match get_report(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {
@@ -56,11 +46,7 @@ pub async fn update_report_message(
 }
 
 #[must_use]
-pub async fn update_audit_message(
-    id: i64,
-    db: &mut DBConn,
-    ctx: &Context,
-) -> anyhow::Result<()> {
+pub async fn update_audit_message(id: i64, db: &mut DBConn, ctx: &Context) -> anyhow::Result<()> {
     let action = match get_action(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {
@@ -88,7 +74,10 @@ pub async fn update_audit_message(
 }
 
 #[instrument(skip(db))]
-pub async fn add_report(r: Report, db: &mut DBConn) -> anyhow::Result<SqliteQueryResult, sqlx::Error> {
+pub async fn add_report(
+    r: Report,
+    db: &mut DBConn,
+) -> anyhow::Result<SqliteQueryResult, sqlx::Error> {
     query!("insert into Reports (reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status, server, time) values (?, ?, ?, ?, ?, ?, ?, ?)",
                 r.reporter_id,
                 r.reporter_name,
@@ -164,8 +153,16 @@ pub async fn get_report_message_from_id(
     )
     .fetch_one(db)
     .await?;
-    let m = MessageId::new(rec.message.parse::<u64>().context("Message ID to be a u64")?);
-    let c = ChannelId::new(rec.channel.parse::<u64>().context("Channel ID to be a u64")?);
+    let m = MessageId::new(
+        rec.message
+            .parse::<u64>()
+            .context("Message ID to be a u64")?,
+    );
+    let c = ChannelId::new(
+        rec.channel
+            .parse::<u64>()
+            .context("Channel ID to be a u64")?,
+    );
     let m = c.message(ctx, m).await?;
     Ok(m)
 }
@@ -181,8 +178,16 @@ pub async fn get_audit_message_from_id(
     )
     .fetch_one(db)
     .await?;
-    let m = MessageId::new(rec.message.parse::<u64>().context("Message ID to be a u64")?);
-    let c = ChannelId::new(rec.channel.parse::<u64>().context("Channel ID to be a u64")?);
+    let m = MessageId::new(
+        rec.message
+            .parse::<u64>()
+            .context("Message ID to be a u64")?,
+    );
+    let c = ChannelId::new(
+        rec.channel
+            .parse::<u64>()
+            .context("Channel ID to be a u64")?,
+    );
     let m = c.message(ctx, m).await?;
     Ok(m)
 }

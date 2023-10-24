@@ -6,10 +6,7 @@ use serenity::prelude::*;
 use std::collections::HashMap;
 use std::error::Error;
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-) -> anyhow::Result<()> {
+pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     let mut autofill_base = HashMap::with_capacity(5);
     for arg in interaction.data.options.iter() {
         autofill_base.insert(

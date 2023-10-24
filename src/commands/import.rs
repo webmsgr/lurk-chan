@@ -12,10 +12,7 @@ use crate::report::{Report, ReportStatus};
 use crate::{db, report_from_msg, LurkChan};
 const OWNER: UserId = UserId::new(171629704959229952);
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-) -> anyhow::Result<()> {
+pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     if interaction.user.id != OWNER {
         interaction
             .create_response(

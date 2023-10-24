@@ -6,8 +6,8 @@ mod interactions;
 mod prefabs;
 mod report;
 
-use async_shutdown::ShutdownManager;
 use anyhow::Context as anyhow_context;
+use async_shutdown::ShutdownManager;
 use autorespond::message;
 use db::{add_report_message, update_audit_message};
 use serenity::async_trait;
@@ -257,7 +257,10 @@ async fn on_message(ctx: Context, new_message: Message) -> anyhow::Result<()> {
             .any(|i| i.id == ctx.cache.current_user().id)
     {
         // this is a ping of us.
-        new_message.reply(&ctx, message()).await.context("Failed to reply to the user!")?;
+        new_message
+            .reply(&ctx, message())
+            .await
+            .context("Failed to reply to the user!")?;
         return Ok(());
     }
     // locker
@@ -272,7 +275,7 @@ async fn on_message(ctx: Context, new_message: Message) -> anyhow::Result<()> {
     let r = if let Some(i) = report_from_msg(&new_message).context("Error parsing report")? {
         i
     } else {
-        return Ok(())
+        return Ok(());
     };
     let msg_report = r.clone();
     // insert the report in the database
@@ -281,7 +284,10 @@ async fn on_message(ctx: Context, new_message: Message) -> anyhow::Result<()> {
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
     };
     let mut db = lc.db().await;
-    let id = db::add_report(r, &mut db).await.context("Error inserting cheater report")?.last_insert_rowid();
+    let id = db::add_report(r, &mut db)
+        .await
+        .context("Error inserting cheater report")?
+        .last_insert_rowid();
     // send a whole new message
     let comp = msg_report.components(id);
     let m = new_message
@@ -292,14 +298,18 @@ async fn on_message(ctx: Context, new_message: Message) -> anyhow::Result<()> {
                 .embed(msg_report.create_embed(id, &mut db).await)
                 .components(comp),
         )
-        .await.context("Failed to send new message")?;
+        .await
+        .context("Failed to send new message")?;
 
     // insert the message
 
     add_report_message(id, m, &mut db).await?;
 
     // delete the old message
-    new_message.delete(&ctx).await.context("Failed to delete old message")?;
-        
+    new_message
+        .delete(&ctx)
+        .await
+        .context("Failed to delete old message")?;
+
     Ok(())
 }

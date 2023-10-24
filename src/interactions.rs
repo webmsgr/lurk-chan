@@ -5,9 +5,9 @@ use crate::db::{
 };
 use crate::prefabs::{audit_log_modal, AutofillAuditLog};
 use crate::report::Report;
-use anyhow::Context as _;
 use crate::{commands, LurkChan};
 use anyhow::anyhow;
+use anyhow::Context as _;
 use serenity::all::EditInteractionResponse;
 use serenity::builder::{
     CreateInteractionResponse, CreateInteractionResponseFollowup, CreateInteractionResponseMessage,
@@ -58,12 +58,11 @@ pub async fn on_interaction(ctx: Context, interaction: Interaction) {
 }
 
 #[instrument(skip(ctx, modl))]
-async fn on_model(
-    ctx: &Context,
-    modl: &ModalInteraction,
-) -> anyhow::Result<()> {
+async fn on_model(ctx: &Context, modl: &ModalInteraction) -> anyhow::Result<()> {
     info!("Judgement day");
-    modl.defer_ephemeral(&ctx).await.context("Failed to defer ephemeral")?;
+    modl.defer_ephemeral(&ctx)
+        .await
+        .context("Failed to defer ephemeral")?;
     let lc = {
         let data = ctx.data.read().await;
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))
@@ -96,8 +95,9 @@ async fn on_model(
         .collect();
     //println!("{:?}, {:?}", model_data, modl.message);
     modl.defer_ephemeral(&ctx).await?;
-    let model_data: AuditModelResult =
-        serde_json::to_value(model_data).and_then(|s| serde_json::from_value(s)).context("Failed to parse modal")?;
+    let model_data: AuditModelResult = serde_json::to_value(model_data)
+        .and_then(|s| serde_json::from_value(s))
+        .context("Failed to parse modal")?;
     //println!("{:?}", model_data);
     match s {
         'r' => {
@@ -107,19 +107,26 @@ async fn on_model(
                 Location::Discord => *DISC_AUDIT,
                 Location::SL => *SL_AUDIT,
             };
-            let r = add_action(action.clone(), &mut db).await.context("failed to add action")?;
+            let r = add_action(action.clone(), &mut db)
+                .await
+                .context("failed to add action")?;
             let a_id = r.last_insert_rowid();
             let comp = action.create_components(a_id, &mut db).await;
             let e = action.create_embed(&ctx, a_id).await?;
 
-            if let Some(_) = get_audit_message_from_report(id, &mut db, ctx).await.context("Failed to get audit message from report")? {
+            if let Some(_) = get_audit_message_from_report(id, &mut db, ctx)
+                .await
+                .context("Failed to get audit message from report")?
+            {
                 warn!("Probably a race condition, this is bad!");
                 //m.edit(ctx, EditMessage::default().embed(e).components(comp)).await?;
             } else {
                 let m = chan
                     .send_message(ctx, CreateMessage::default().embed(e).components(comp))
                     .await?;
-                add_action_message(a_id, m.clone(), &mut db).await.context("Failed to add action message")?;
+                add_action_message(a_id, m.clone(), &mut db)
+                    .await
+                    .context("Failed to add action message")?;
                 if let Some(id) = report_id {
                     //let mut report_msg = modl.message.clone().unwrap();
                     let uid = u.id.get().to_string();
@@ -132,7 +139,9 @@ async fn on_model(
                     )
                     .execute(&mut db)
                     .await.context("failed to update database")?;
-                    update_report_message(id, &mut db, ctx).await.context("failed to update report message")?;
+                    update_report_message(id, &mut db, ctx)
+                        .await
+                        .context("failed to update report message")?;
                 }
             }
         }
@@ -181,10 +190,7 @@ async fn on_model(
 }
 
 #[instrument(skip(ctx, int))]
-async fn on_interaction_button(
-    ctx: &Context,
-    int: &ComponentInteraction,
-) -> anyhow::Result<()> {
+async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> anyhow::Result<()> {
     let lc = {
         let data = ctx.data.read().await;
         Arc::clone(data.get::<LurkChan>().expect("Failed to get lurk_chan"))

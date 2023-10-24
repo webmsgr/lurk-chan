@@ -61,11 +61,7 @@ pub struct Action {
     pub report: Option<i64>,
 }
 impl Action {
-    pub async fn create_embed(
-        self,
-        ctx: &Context,
-        id: i64,
-    ) -> anyhow::Result<CreateEmbed> {
+    pub async fn create_embed(self, ctx: &Context, id: i64) -> anyhow::Result<CreateEmbed> {
         let c: UserId = self.claimant.parse()?;
         let g = SL_AUDIT
             .to_channel(ctx)

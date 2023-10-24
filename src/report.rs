@@ -32,7 +32,14 @@ pub struct Report {
 
 impl Report {
     pub async fn create_embed(self, report_id: i64, db: &mut DBConn) -> CreateEmbed {
-        let report_count = sqlx::query!("select count(*) as \"count\" from Reports where reported_id = ?", self.reported_id).fetch_one(db).await.unwrap().count;
+        let report_count = sqlx::query!(
+            "select count(*) as \"count\" from Reports where reported_id = ?",
+            self.reported_id
+        )
+        .fetch_one(db)
+        .await
+        .unwrap()
+        .count;
         let rs = self.report_status_string();
         CreateEmbed::default()
             .title(format!("Report #{}", report_id))
@@ -55,8 +62,7 @@ impl Report {
             )
             .footer(CreateEmbedFooter::new(format!(
                 "`/past id:{}` (has been reported {} times)",
-                self.reported_id,
-                report_count
+                self.reported_id, report_count
             )))
             .timestamp(
                 self.time

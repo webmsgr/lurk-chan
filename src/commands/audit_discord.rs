@@ -6,10 +6,7 @@ use serenity::builder::{CreateCommand, CreateCommandOption};
 use serenity::prelude::*;
 use std::error::Error;
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-) -> anyhow::Result<()> {
+pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     let (user, u, message) = if let Some(i) = interaction.data.resolved.users.iter().next() {
         (i.0, i.1, None)
     } else {
