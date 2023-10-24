@@ -3,10 +3,10 @@ use crate::db::{
     add_action, add_action_message, get_action, get_audit_message_from_report, get_report,
     update_audit_message, update_report_message,
 };
-use crate::prefabs::{audit_log_modal};
+use crate::prefabs::audit_log_modal;
 
 use crate::{commands, LurkChan};
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use anyhow::Context as _;
 use serenity::all::EditInteractionResponse;
 use serenity::builder::{
@@ -181,7 +181,7 @@ async fn on_model(ctx: &Context, modl: &ModalInteraction) -> anyhow::Result<()> 
             query!("insert into AuditEdits (action_id, old, new, who, time, changes) values (?, ?, ?, ?, ?, ?)", id, old_str, new_str, who, when, changes_str).execute(&mut db).await?;
             update_audit_message(id, &mut db, ctx).await?;
         }
-        _ => unreachable!(),
+        _ => bail!("Invalid s: {}", s),
     }
 
     modl.edit_response(ctx, EditInteractionResponse::new().content("ok"))
@@ -307,7 +307,7 @@ async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> any
             .execute(&mut db)
             .await?;
         }
-        _ => unreachable!(),
+        _ => anyhow::bail!("Invalid interaction: {}", kind),
     }
     update_report_message(id, &mut db, &ctx).await?;
     int.create_followup(

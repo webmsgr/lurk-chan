@@ -9,7 +9,7 @@ mod report;
 use anyhow::Context as anyhow_context;
 use async_shutdown::ShutdownManager;
 use autorespond::message;
-use db::{add_report_message};
+use db::add_report_message;
 use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
