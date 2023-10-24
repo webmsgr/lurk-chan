@@ -4,8 +4,7 @@ use serenity::builder::{
     CreateInteractionResponseMessage, EditInteractionResponse,
 };
 use serenity::prelude::*;
-use sqlx::{query_as, Acquire};
-use std::error::Error;
+use sqlx::query_as;
 use std::future::Future;
 use std::sync::Arc;
 

@@ -1,10 +1,9 @@
 use crate::audit::Location;
 use crate::prefabs::{audit_log_modal, AutofillAuditLog};
-use crate::report::Report;
+
 use serenity::all::{CommandInteraction, CommandOptionType, CommandType};
 use serenity::builder::{CreateCommand, CreateCommandOption};
 use serenity::prelude::*;
-use std::error::Error;
 
 pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     let (user, u, message) = if let Some(i) = interaction.data.resolved.users.iter().next() {

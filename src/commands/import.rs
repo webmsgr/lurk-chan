@@ -4,7 +4,6 @@ use serenity::builder::{
 };
 use serenity::futures::StreamExt;
 use serenity::prelude::*;
-use std::error::Error;
 use std::sync::Arc;
 use tracing::info;
 

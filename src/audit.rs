@@ -7,7 +7,7 @@ use serenity::model::id::ChannelId;
 use serenity::model::prelude::*;
 use serenity::model::Color;
 use std::env::var;
-use std::result::Result;
+
 
 use crate::lc::DBConn;
 
@@ -93,7 +93,7 @@ impl Action {
                 }
             })))
     }
-    pub async fn create_components(&self, id: i64, db: &mut DBConn) -> Vec<CreateActionRow> {
+    pub async fn create_components(&self, id: i64, _db: &mut DBConn) -> Vec<CreateActionRow> {
         vec![CreateActionRow::Buttons(vec![CreateButton::new(format!(
             "edit_{}",
             id

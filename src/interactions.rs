@@ -3,8 +3,8 @@ use crate::db::{
     add_action, add_action_message, get_action, get_audit_message_from_report, get_report,
     update_audit_message, update_report_message,
 };
-use crate::prefabs::{audit_log_modal, AutofillAuditLog};
-use crate::report::Report;
+use crate::prefabs::{audit_log_modal};
+
 use crate::{commands, LurkChan};
 use anyhow::anyhow;
 use anyhow::Context as _;
@@ -17,7 +17,7 @@ use serenity::model::prelude::*;
 use serenity::prelude::*;
 use sqlx::query;
 use std::collections::HashMap;
-use std::result::Result;
+
 use std::sync::Arc;
 use tracing::{error, info, instrument, warn};
 

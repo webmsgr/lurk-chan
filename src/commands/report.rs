@@ -8,7 +8,6 @@ use serenity::builder::CreateCommand;
 use serenity::prelude::*;
 use sqlx::query_as;
 use sqlx::Acquire;
-use std::error::Error;
 use std::sync::Arc;
 pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     interaction.defer_ephemeral(ctx).await?;

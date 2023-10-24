@@ -3,7 +3,6 @@ use serenity::builder::{
     CreateCommand, CreateInteractionResponse, CreateInteractionResponseMessage,
 };
 use serenity::prelude::*;
-use std::error::Error;
 
 pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     interaction

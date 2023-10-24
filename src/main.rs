@@ -9,7 +9,7 @@ mod report;
 use anyhow::Context as anyhow_context;
 use async_shutdown::ShutdownManager;
 use autorespond::message;
-use db::{add_report_message, update_audit_message};
+use db::{add_report_message};
 use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
@@ -26,7 +26,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::collections::HashMap;
 use std::env::var;
 use std::path::PathBuf;
-use std::result::Result;
+
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info, instrument};

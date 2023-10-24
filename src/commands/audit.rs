@@ -4,7 +4,6 @@ use serenity::all::{CommandInteraction, CommandOptionType};
 use serenity::builder::{CreateCommand, CreateCommandOption};
 use serenity::prelude::*;
 use std::collections::HashMap;
-use std::error::Error;
 
 pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
     let mut autofill_base = HashMap::with_capacity(5);
