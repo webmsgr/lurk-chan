@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where target_id = ?;",
+  "query": "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where target_id = ? limit 5;",
   "describe": {
     "columns": [
       {
@@ -52,5 +52,5 @@
       true
     ]
   },
-  "hash": "7f274dbfcd6c1f9dde63f320f65efd07cefc90822ea7a945b6b9d11f39bf2d1b"
+  "hash": "165af8650d1ebc681cdfd32fa561756903ecb12355a5e88438bb64ffcddf4d8e"
 }

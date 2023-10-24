@@ -5,4 +5,5 @@ lurk-chan.db-wal
 .env
 .idea
 *.db
-backups
+/backups
+.git

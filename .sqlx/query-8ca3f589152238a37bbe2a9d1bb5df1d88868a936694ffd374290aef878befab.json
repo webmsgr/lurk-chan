@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reporter_id = ? order by time desc",
+  "query": "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reporter_id = ? order by time desc limit 5",
   "describe": {
     "columns": [
       {
@@ -70,5 +70,5 @@
       true
     ]
   },
-  "hash": "ab6d897ee590014d56c984b919aafd5ff106fad307b9225f2199ef6e4616cdeb"
+  "hash": "8ca3f589152238a37bbe2a9d1bb5df1d88868a936694ffd374290aef878befab"
 }

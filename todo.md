@@ -21,3 +21,4 @@ for 1.2.1
 * refine the permission system
 * maybe: somehow autoconvert normal audit log messages (cringe) to the cool lurk chan ones (based) (good fucking luck chief) (if they fucking follow the format)
 * /open to see open reports (for admins looking for things to do)
+* changelog
