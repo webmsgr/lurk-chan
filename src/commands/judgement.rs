@@ -24,6 +24,6 @@ pub fn register() -> CreateCommand {
         .add_option(CreateCommandOption::new(
             CommandOptionType::SubCommand,
             "day",
-            "JUDGEMENT DAY",
+            "SOUND THE TRUMPETS!",
         ))
 }

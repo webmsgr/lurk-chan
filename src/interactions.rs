@@ -94,7 +94,7 @@ async fn on_model(ctx: &Context, modl: &ModalInteraction) -> anyhow::Result<()> 
         })
         .collect();
     //println!("{:?}, {:?}", model_data, modl.message);
-    modl.defer_ephemeral(&ctx).await?;
+    //modl.defer_ephemeral(&ctx).await?;
     let model_data: AuditModelResult = serde_json::to_value(model_data)
         .and_then(|s| serde_json::from_value(s))
         .context("Failed to parse modal")?;

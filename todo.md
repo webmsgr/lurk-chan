@@ -14,7 +14,7 @@ for 1.2.0
 * ~~switch to anyhow and pretty much completely redo error handling (pain and suffering)~~
 
 
-for 1.2.1
+for 1.2.2
 * maybe: right click lurkbot embeds -> apps -> fill_audit
 * add console commands to query db all under "db" command. "db top claims" "db top reported", etc etc. just go fuckign wild
 * maybe: allow users in main to report people with the bot (#discord-reports) (this will be abused, 100%)
