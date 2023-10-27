@@ -16,6 +16,6 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
     Ok(())
 }
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("ping").description("Ping!")
+pub fn register() -> (CreateCommand, &'static str) {
+    (CreateCommand::new("ping").description("Ping!"), "ping")
 }

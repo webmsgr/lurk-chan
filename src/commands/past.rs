@@ -88,8 +88,8 @@ pub fn run<'a>(
     }
 }
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("past")
+pub fn register() -> (CreateCommand, &'static str) {
+    (CreateCommand::new("past")
         .description("View a user's past infractions")
         .add_option(
             CreateCommandOption::new(
@@ -98,5 +98,5 @@ pub fn register() -> CreateCommand {
                 "Id in database, either discord id or <steamid>@steam",
             )
             .required(true),
-        )
+        ), "past")
 }

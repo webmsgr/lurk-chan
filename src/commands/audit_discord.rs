@@ -42,26 +42,27 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
 
 pub mod user {
     use super::*;
-    pub fn register() -> CreateCommand {
-        CreateCommand::new("Audit User")/*.description("Create a new audit log entry for a discord user")*/.kind(CommandType::User)
+    pub fn register() -> (CreateCommand, &'static str) {
+        (CreateCommand::new("Audit User")/*.description("Create a new audit log entry for a discord user")*/.kind(CommandType::User), "Audit User")
     }
 }
 
 pub mod message {
     use super::*;
-    pub fn register() -> CreateCommand {
-        CreateCommand::new("Audit Message")/*.description("Create a new audit log entry for a discord user")*/.kind(CommandType::Message)
+    pub fn register() -> (CreateCommand, &'static str) {
+        (CreateCommand::new("Audit Message")/*.description("Create a new audit log entry for a discord user")*/.kind(CommandType::Message), "Audit Message")
     }
 }
 
 pub mod slash {
     use super::*;
-    pub fn register() -> CreateCommand {
-        CreateCommand::new("discord")
+    pub fn register() -> (CreateCommand, &'static str) {
+        (CreateCommand::new("discord")
             .description("Create a new audit log entry for a discord user")
             .add_option(
                 CreateCommandOption::new(CommandOptionType::User, "user", "User to audit")
                     .required(true),
             )
+        , "discord")
     }
 }

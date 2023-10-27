@@ -44,11 +44,11 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
     Ok(())
 }
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("report")
+pub fn register() -> (CreateCommand, &'static str) {
+    (CreateCommand::new("report")
         .description("Get a report!")
         .add_option(
             CreateCommandOption::new(CommandOptionType::Integer, "report_id", "Id of the report")
                 .required(true),
-        )
+        ), "report")
 }

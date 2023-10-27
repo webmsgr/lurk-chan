@@ -157,7 +157,7 @@ async fn on_model(ctx: &Context, modl: &ModalInteraction) -> anyhow::Result<()> 
             //target_username text not null,
             //offense text not null,
             //action text not null,
-            let _ = query!("update Actions set target_id = ?, target_username = ?, offense = ?, action = ? where id = ?", 
+            query!("update Actions set target_id = ?, target_username = ?, offense = ?, action = ? where id = ?", 
                 m_action.target_id,
                 m_action.target_username,
                 m_action.offense,
@@ -231,7 +231,7 @@ async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> any
                 int.create_followup(
                     ctx,
                     CreateInteractionResponseFollowup::default()
-                        .content("sorry oomfie, that doesn't belong to you")
+                        .content("sorry buddy, that doesn't belong to you")
                         .ephemeral(true),
                 )
                 .await?;
@@ -293,7 +293,7 @@ async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> any
                 int.create_followup(
                     ctx,
                     CreateInteractionResponseFollowup::default()
-                        .content("sorry oomfie, that doesn't belong to you")
+                        .content("sorry buddy, that doesn't belong to you")
                         .ephemeral(true),
                 )
                 .await?;

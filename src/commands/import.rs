@@ -9,22 +9,7 @@ use tracing::info;
 
 use crate::report::{Report, ReportStatus};
 use crate::{db, report_from_msg, LurkChan};
-const OWNER: UserId = UserId::new(171629704959229952);
-
 pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Result<()> {
-    if interaction.user.id != OWNER {
-        interaction
-            .create_response(
-                ctx,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .content("nuh uh!")
-                        .ephemeral(true),
-                ),
-            )
-            .await?;
-        return Ok(());
-    }
     interaction
         .create_response(
             ctx,
@@ -72,6 +57,6 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
     Ok(())
 }
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("import").description("rest!")
+pub fn register() -> (CreateCommand, &'static str) {
+    (CreateCommand::new("import").description("rest!"), "import")
 }

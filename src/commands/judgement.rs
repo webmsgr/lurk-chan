@@ -11,19 +11,19 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
             CreateInteractionResponse::Message(
                 CreateInteractionResponseMessage::new()
                     .ephemeral(true)
-                    .content("Sorry buddy, only god can run this command."),
+                    .content("If you are seeing this message, then you have somehow bypassed the permission check, godspeed."),
             ),
         )
         .await?;
     Ok(())
 }
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("judgement")
-        .description("judgement")
+pub fn register() -> (CreateCommand, &'static str) {
+    (CreateCommand::new("when")
+        .description("when")
         .add_option(CreateCommandOption::new(
-            CommandOptionType::SubCommand,
+            CommandOptionType::SubCommandGroup,
             "day",
-            "SOUND THE TRUMPETS!",
-        ))
+            "day",
+        ).add_sub_option(CreateCommandOption::new(CommandOptionType::SubCommand, "breaks", "Golden days. In the sunshine of a happy youth"))), "when")
 }

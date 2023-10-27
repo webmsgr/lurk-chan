@@ -6,4 +6,4 @@ lurk-chan.db-wal
 .idea
 *.db
 /backups
-.git
+/.git

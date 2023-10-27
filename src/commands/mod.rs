@@ -6,42 +6,29 @@ mod past;
 mod ping;
 mod report;
 use anyhow::anyhow;
-use serenity::all::{
-    CommandInteraction, CreateInteractionResponse, CreateInteractionResponseMessage,
-};
+use serenity::all::{CommandInteraction, CreateInteractionResponse, CreateInteractionResponseMessage, Member, UserId};
 use serenity::builder::CreateCommand;
 use serenity::model::{application, Permissions};
 use serenity::prelude::*;
 use tracing::{error, info, instrument};
 
 pub async fn run_command(ctx: &Context, interact: &CommandInteraction) {
-    if !interact
-        .member
-        .as_ref()
-        .expect("Not in a fucking DM")
-        .roles
-        .iter()
-        .any(|role| {
-            role.to_role_cached(&ctx).is_some_and(|e| {
-                e.permissions.contains(Permissions::ADMINISTRATOR)
-                    || e.name.contains("Admin")
-                    || e.name.contains("Mod")
-            })
-        })
-    {
+    let cmd = interact.data.name.as_str();
+    let req_perm_level = perm_level(cmd);
+    if !does_fit(interact.member.as_ref().expect("a member"), req_perm_level, ctx) {
         let _ = interact
             .create_response(
                 &ctx,
                 CreateInteractionResponse::Message(
                     CreateInteractionResponseMessage::new()
-                        .content("nah oomfie you dont have the roles")
+                        .content(format!("nah buddy, permission denied, you need to be a '{}' to run this command", perm_level(cmd).as_ref()))
                         .ephemeral(true),
                 ),
             )
             .await;
         return;
     }
-    if let Err(e) = match interact.data.name.as_str() {
+    if let Err(e) = match cmd {
         "ping" => ping::run(ctx, interact).await,
         "audit" => audit::run(ctx, interact).await,
         "discord" | "Audit Message" | "Audit User" => audit_discord::run(ctx, interact).await,
@@ -55,14 +42,60 @@ pub async fn run_command(ctx: &Context, interact: &CommandInteraction) {
     }
 }
 
+fn does_fit(user: &Member, perm: PermLevel, ctx: &Context) -> bool {
+    match perm {
+        PermLevel::Anyone => true,
+        PermLevel::Staff => {
+            user.roles
+                .iter()
+                .any(|role| {
+                    role.to_role_cached(&ctx).is_some_and(|e| {
+                        e.permissions.contains(Permissions::ADMINISTRATOR)
+                            || e.name.contains("Admin")
+                            || e.name.contains("Mod")
+                    })
+                })
+        },
+        PermLevel::Dev => user.user.id == OWNER,
+        PermLevel::God | PermLevel::Nobody | PermLevel::Invalid => false
+    }
+}
+
+
+const OWNER: UserId = UserId::new(171629704959229952);
+use strum::{EnumVariantNames, EnumString, AsRefStr};
+#[derive(Debug, PartialEq, Eq, EnumVariantNames, EnumString, AsRefStr)]
+enum PermLevel {
+    Anyone,
+    Staff,
+    Dev,
+    God,
+    Nobody,
+    Invalid
+}
+
+fn perm_level(command: &str) -> PermLevel {
+    use crate::commands::PermLevel::*;
+    match command {
+        "ping" => Anyone,
+        "audit" | "discord" | "Audit Message" | "Audit User" | "past" | "report" => Staff,
+        "import" => Dev,
+        "when" => God,
+        _ => Invalid
+    }
+}
+
 fn do_perms(c: CreateCommand) -> CreateCommand {
     c.dm_permission(false)
 }
 
 macro_rules! command {
     ($ctx:expr, $name:ident) => {
-        info!("Registering command: {}", stringify!($name));
-        application::Command::create_global_command($ctx, do_perms($name::register()))
+        let (command, name) = $name::register();
+        let perms = perm_level(name);
+        info!("Registering command: {} with perms: {:?}", stringify!($name), perms);
+        assert_ne!(perms, crate::commands::PermLevel::Invalid);
+        application::Command::create_global_command($ctx, do_perms(command))
             .await
             .expect(&format!(
                 "Failed to create global command {}",
@@ -70,12 +103,16 @@ macro_rules! command {
             ))
     };
     ($ctx:expr, $name:ident, $sub:ident) => {
+        let (command, name) = $name::$sub::register();
+        let perms = perm_level(name);
         info!(
-            "Registering command: {}::{}",
+            "Registering command: {}::{} with perms {:?}",
             stringify!($name),
-            stringify!($sub)
+            stringify!($sub),
+            perms
         );
-        application::Command::create_global_command($ctx, do_perms($name::$sub::register()))
+        assert_ne!(perms, crate::commands::PermLevel::Invalid);
+        application::Command::create_global_command($ctx, do_perms(command))
             .await
             .expect(&format!(
                 "Failed to create global command {}::{}",

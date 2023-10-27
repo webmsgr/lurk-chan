@@ -36,8 +36,8 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
     Ok(())
 }
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("audit")
+pub fn register() -> (CreateCommand, &'static str) {
+    (CreateCommand::new("audit")
         .description("Create a new audit log entry")
         .add_option(
             CreateCommandOption::new(
@@ -67,5 +67,5 @@ pub fn register() -> CreateCommand {
             CommandOptionType::String,
             "punishment",
             "Punishment of the audited user",
-        ))
+        )), "audit")
 }
