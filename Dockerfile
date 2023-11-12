@@ -17,7 +17,7 @@ COPY . .
 RUN cargo build --target x86_64-unknown-linux-musl --release
 
 # We do not need the Rust toolchain to run the binary!
-FROM alpine AS runtime
+FROM alpine:latest AS runtime
 RUN adduser --disabled-password --home /home/container container
 USER container
 ENV  USER=container HOME=/home/container

@@ -34,6 +34,7 @@ use tracing::{error, info, instrument};
 mod autorespond;
 /// this struct is passed around in an arc to share state
 mod lc;
+mod stats;
 
 pub use lc::LurkChan;
 
@@ -91,6 +92,7 @@ async fn main() {
     let token = var("DISCORD_TOKEN").expect("token");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     let lc = Arc::clone(&lurk_chan);
+    let stats_lc = Arc::clone(&lurk_chan);
     let mut client = Client::builder(token, intents)
         .type_map_insert::<LurkChan>(lurk_chan)
         .event_handler(Handler)
@@ -99,6 +101,13 @@ async fn main() {
     let ctx = (client.cache.clone(), client.http.clone());
     console::spawn_console(shutdown.clone(), lc, (ctx.0, ctx.1));
     let shard_manager = client.shard_manager.clone();
+    let ctx = (client.cache.clone(), client.http.clone());
+    let stats_shutdown = shutdown.clone();
+    tokio::task::spawn(shutdown.wrap_trigger_shutdown("Stats died", async move {
+        if let Err(e) = stats::stats_task(stats_lc, ctx, stats_shutdown).await {
+            error!("Stats task error: {:?}", e);
+        };
+    }));
     tokio::task::spawn(shutdown.wrap_trigger_shutdown("Client died", async move {
         if let Err(c) = client.start_autosharded().await {
             error!("Error running client {:?}", c);

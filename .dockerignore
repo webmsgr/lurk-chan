@@ -7,3 +7,6 @@ lurk-chan.db-wal
 *.db
 /backups
 /.git
+backups
+.git
+target

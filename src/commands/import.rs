@@ -1,4 +1,4 @@
-use serenity::all::{CommandInteraction, UserId};
+use serenity::all::CommandInteraction;
 use serenity::builder::{
     CreateCommand, CreateInteractionResponse, CreateInteractionResponseMessage,
 };

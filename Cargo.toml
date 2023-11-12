@@ -1,6 +1,6 @@
 [package]
 name = "lurk_chan"
-version = "1.2.2"
+version = "1.2.3"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,25 +8,29 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1.0.75", features = ["backtrace"] }
 async-shutdown = "0.2.1"
-clap = { version = "4.4.6", features = ["derive"] }
-color-backtrace = "0.6.0"
+clap = { version = "4.4.8", features = ["derive"] }
+color-backtrace = "0.6.1"
 dotenvy = "0.15.7"
 futures = { version = "0.3.28", default-features = false }
 json-patch = "1.2.0"
 once_cell = "1.18.0"
 rand = "0.8.5"
-serde = { version = "1.0.189", features = ["derive"] }
-serde_json = "1.0.107"
-serenity = { git = "https://github.com/serenity-rs/serenity.git", rev = "7e1a6ebb315304aba5a620e27525f30e8e039e6a", default-features = false, features = ["rustls_backend", "builder", "collector", "chrono", "cache", "client", "gateway", "http", "model", "utils"] }
+serde = { version = "1.0.192", features = ["derive"] }
+serde_json = "1.0.108"
+serenity = { git = "https://github.com/serenity-rs/serenity.git", rev = "b32bfcfd0e7ee837979c433f3a4aa6e547b1c8b7", default-features = false, features = ["rustls_backend", "builder", "collector", "chrono", "cache", "client", "gateway", "http", "model", "utils"] }
 shellwords = "1.1.0"
 #serenity = { version = "0.11.6", default-features = false, features = ["rustls_backend", "parking_lot", "model", "levenshtein", "http", "gateway", "framework", "flate2", "default_no_backend", "dashmap", "command_attr", "client", "chrono", "cache", "builder", "base64", "bytes", "utils"] }
 sqlx = { version = "0.7.2", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros"] }
 strum = { version = "0.25.0", features = ["derive"] }
-tokio = { version = "1.33.0", features = ["full"] }
+tokio = { version = "1.34.0", features = ["full"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.17"
 url = { version = "2.4.1", features = ["serde"] }
 
-
 [profile.dev.package."*"]
 opt-level = 2
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

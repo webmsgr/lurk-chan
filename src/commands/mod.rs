@@ -5,12 +5,20 @@ mod judgement;
 mod past;
 mod ping;
 mod report;
+mod report_message_to_admins;
+mod search;
+
+use std::env::var;
 use anyhow::anyhow;
-use serenity::all::{CommandInteraction, CreateInteractionResponse, CreateInteractionResponseMessage, Member, UserId};
-use serenity::builder::CreateCommand;
+use once_cell::sync::Lazy;
+
+use serenity::all::{CommandInteraction, CreateInteractionResponse, CreateInteractionResponseMessage, GuildId, Member, UserId};
+use serenity::builder::{CreateCommand, CreateInteractionResponseFollowup};
 use serenity::model::{application, Permissions};
 use serenity::prelude::*;
 use tracing::{error, info, instrument};
+
+const DEV_GUILD: Lazy<Option<GuildId>> = Lazy::new(|| var("DEV_GUILD").ok().map(|i| GuildId::new(i.parse().expect("Failed to load dev_guild"))));
 
 pub async fn run_command(ctx: &Context, interact: &CommandInteraction) {
     let cmd = interact.data.name.as_str();
@@ -36,9 +44,14 @@ pub async fn run_command(ctx: &Context, interact: &CommandInteraction) {
         "report" => report::run(ctx, interact).await,
         "import" => import::run(ctx, interact).await,
         "judgement" => judgement::run(ctx, interact).await,
+        "Report Message" => report_message_to_admins::run(ctx, interact).await,
+        "search" => search::run(ctx, interact).await,
         _ => Err(anyhow!("Unknown command! {}", interact.data.name)),
     } {
-        error!("Error running command {}: {:?}", interact.data.name, e)
+        error!("Error running command {}: {:?}", interact.data.name, e);
+        let _ = interact.create_followup(&ctx, CreateInteractionResponseFollowup::new()
+            .content("Hey, that command returned an error. Might be your fault, might be mine. Who knows.").ephemeral(true)
+        ).await;
     }
 }
 
@@ -77,8 +90,8 @@ enum PermLevel {
 fn perm_level(command: &str) -> PermLevel {
     use crate::commands::PermLevel::*;
     match command {
-        "ping" => Anyone,
-        "audit" | "discord" | "Audit Message" | "Audit User" | "past" | "report" => Staff,
+        "ping" | "Report Message" => Anyone,
+        "audit" | "discord" | "Audit Message" | "Audit User" | "past" | "report" | "search" => Staff,
         "import" => Dev,
         "when" => God,
         _ => Invalid
@@ -89,18 +102,28 @@ fn do_perms(c: CreateCommand) -> CreateCommand {
     c.dm_permission(false)
 }
 
+
+macro_rules! register_command {
+    ($ctx:expr, $cmd:expr) => {
+        if cfg!(debug_assertions) {
+            DEV_GUILD.as_ref().unwrap().create_command($ctx, $cmd).await
+        } else {
+            application::Command::create_global_command($ctx, $cmd)
+            .await
+        }
+    };
+}
+
 macro_rules! command {
     ($ctx:expr, $name:ident) => {
         let (command, name) = $name::register();
         let perms = perm_level(name);
         info!("Registering command: {} with perms: {:?}", stringify!($name), perms);
         assert_ne!(perms, crate::commands::PermLevel::Invalid);
-        application::Command::create_global_command($ctx, do_perms(command))
-            .await
-            .expect(&format!(
+        register_command!($ctx, do_perms(command)).expect(&format!(
                 "Failed to create global command {}",
                 stringify!($name)
-            ))
+            ));
     };
     ($ctx:expr, $name:ident, $sub:ident) => {
         let (command, name) = $name::$sub::register();
@@ -112,8 +135,7 @@ macro_rules! command {
             perms
         );
         assert_ne!(perms, crate::commands::PermLevel::Invalid);
-        application::Command::create_global_command($ctx, do_perms(command))
-            .await
+        register_command!($ctx, do_perms(command))
             .expect(&format!(
                 "Failed to create global command {}::{}",
                 stringify!($name),
@@ -123,14 +145,27 @@ macro_rules! command {
 }
 #[instrument(skip(ctx))]
 pub async fn register_commands(ctx: &impl CacheHttp) {
-    let commands = application::Command::get_global_commands(ctx.http())
-        .await
-        .unwrap();
+    if cfg!(debug_assertions) {
+        info!("Commands will be registered in debug server only");
+    } else {
+        info!("Commands will be registered in all guilds");
+    }
+    let commands = if cfg!(debug_assertions) {
+        DEV_GUILD.as_ref().unwrap().get_commands(ctx.http()).await.unwrap()
+    } else {
+        application::Command::get_global_commands(ctx.http())
+            .await
+            .unwrap()
+    };
     for command in commands {
         info!("Unregistering command {}", command.name);
-        application::Command::delete_global_command(ctx.http(), command.id)
-            .await
-            .unwrap();
+        if cfg!(debug_assertions) {
+            DEV_GUILD.as_ref().unwrap().delete_command(ctx.http(), command.id).await.unwrap();
+        } else {
+            application::Command::delete_global_command(ctx.http(), command.id)
+                .await
+                .unwrap();
+        }
     }
     command!(ctx, ping);
     command!(ctx, audit);
@@ -141,5 +176,7 @@ pub async fn register_commands(ctx: &impl CacheHttp) {
     command!(ctx, report);
     command!(ctx, import);
     command!(ctx, judgement);
+    command!(ctx, report_message_to_admins);
+    command!(ctx, search);
     info!("All commands registered!")
 }

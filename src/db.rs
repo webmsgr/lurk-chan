@@ -11,7 +11,7 @@ use sqlx::{query, query_as};
 
 use crate::audit::Location;
 //use std::result::Result;
-use tracing::{error, instrument};
+use tracing::instrument;
 pub async fn get_report(id: i64, db: &mut DBConn) -> anyhow::Result<Option<Report>> {
     let r = query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where id = ?", id).fetch_optional(db).await?;
     Ok(r)

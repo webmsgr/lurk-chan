@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "select R.id as id,\r\n       reporter_id,\r\n       reporter_name,\r\n       reported_id,\r\n       reported_name,\r\n       highlight(ReportSearch, 1, '*', '*') as \"report_reason: String\",\r\n       report_status as \"report_status: ReportStatus\",\r\n       server,\r\n       time,\r\n       claimant,\r\n       audit\r\nfrom ReportSearch\r\n         join Reports R on ReportSearch.id = R.id\r\nwhere ReportSearch.report_reason match ?\r\norder by bm25(ReportSearch)\r\nlimit 10;\r\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "reporter_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "reporter_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "reported_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "reported_name",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "report_reason: String",
+        "ordinal": 5,
+        "type_info": "Null"
+      },
+      {
+        "name": "report_status: ReportStatus",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "server",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "time",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "claimant",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "audit",
+        "ordinal": 10,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "2fb3163fa4825f214ccc52cd58dc447f0798a1614b79af243564056db2c7b0c1"
+}

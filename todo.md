@@ -18,7 +18,7 @@ for 1.2.2
 * maybe: right click lurkbot embeds -> apps -> fill_audit
 * add console commands to query db all under "db" command. "db top claims" "db top reported", etc etc. just go fuckign wild
 * maybe: allow users in main to report people with the bot (#discord-reports) (this will be abused, 100%)
-* refine the permission system
+* ~~refine the permission system~~
 * maybe: somehow autoconvert normal audit log messages (cringe) to the cool lurk chan ones (based) (good fucking luck chief) (if they fucking follow the format)
 * /open to see open reports (for admins looking for things to do)
 * changelog
