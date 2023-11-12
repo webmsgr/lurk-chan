@@ -50,7 +50,7 @@ pub fn run<'a>(
         let (reported, reported_count) = {
             (
                 query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reported_id = ? order by time desc limit 5", id).fetch_all(&mut db).await?,
-                sqlx::query!("select count(*) as \"count\" from Reports where reporter_id = ?", id).fetch_one(&mut db).await?.count
+                sqlx::query!("select count(*) as \"count\" from Reports where reported_id = ?", id).fetch_one(&mut db).await?.count
             )
         };
         let (actions, actions_count) = {
@@ -66,12 +66,12 @@ pub fn run<'a>(
         .title(format!("{}'s past...", id))
         .description(format!("{} has been:\n- Reported {} time(s)\n- Reported someone {} time(s)\n- Had action taken against them {} time(s)",id, reported_count, reportee_count, actions_count))
         .field("Recent reported", {
-            reportee.into_iter().map(|i| {
+            reported.into_iter().map(|i| {
                 format!("- Reported by {} on <t:{}:f> for '{}' ({})\n", i.reporter_name, i.time.parse::<Timestamp>().expect("invalid timestamp").timestamp(), i.report_reason, i.report_status_string())
             }).collect::<String>()
         }, false)
         .field("Recent reports", {
-            reported.into_iter().map(|i| {
+            reportee.into_iter().map(|i| {
                 format!("- Reported {} on <t:{}:f> for '{}' ({})\n", i.reported_name, i.time.parse::<Timestamp>().expect("invalid timestamp").timestamp(), i.report_reason, i.report_status_string())
             }).collect::<String>()
         }, false)
