@@ -149,8 +149,8 @@ pub async fn get_report_message_from_id(
         "select message, channel from ReportMessages where report_id = ?;",
         rid
     )
-    .fetch_one(db)
-    .await?;
+    .fetch_optional(db)
+    .await?.with_context(|| format!("No report message found for report {}", rid))?;
     let m = MessageId::new(
         rec.message
             .parse::<u64>()
