@@ -1,3 +1,8 @@
+# 1.2.4
+* fucking hate the past command (fixed bugs)
+* added more stats.
+* expire reports after 48 hours
+
 # 1.2.3
 * optimized size of image (useless)
 * updated deps

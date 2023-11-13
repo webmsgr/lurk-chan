@@ -35,6 +35,7 @@ mod autorespond;
 /// this struct is passed around in an arc to share state
 mod lc;
 mod stats;
+mod expire;
 
 pub use lc::LurkChan;
 
@@ -93,6 +94,7 @@ async fn main() {
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     let lc = Arc::clone(&lurk_chan);
     let stats_lc = Arc::clone(&lurk_chan);
+    let expire_lc = Arc::clone(&lurk_chan);
     let mut client = Client::builder(token, intents)
         .type_map_insert::<LurkChan>(lurk_chan)
         .event_handler(Handler)
@@ -103,11 +105,18 @@ async fn main() {
     let shard_manager = client.shard_manager.clone();
     let ctx = (client.cache.clone(), client.http.clone());
     let stats_shutdown = shutdown.clone();
-    tokio::task::spawn(shutdown.wrap_trigger_shutdown("Stats died", async move {
+    tokio::task::spawn(shutdown.wrap_delay_shutdown(async move {
         if let Err(e) = stats::stats_task(stats_lc, ctx, stats_shutdown).await {
             error!("Stats task error: {:?}", e);
         };
-    }));
+    }).expect("Shutdown!"));
+    let ctx = (client.cache.clone(), client.http.clone());
+    let expire_shut = shutdown.clone();
+    tokio::task::spawn(shutdown.wrap_delay_shutdown(async move {
+        if let Err(e) = expire::expire_task(expire_lc, ctx, expire_shut).await {
+            error!("Expire task error: {:?}", e);
+        };
+    }).expect("Shutdown!"));
     tokio::task::spawn(shutdown.wrap_trigger_shutdown("Client died", async move {
         if let Err(c) = client.start_autosharded().await {
             error!("Error running client {:?}", c);

@@ -1,4 +1,5 @@
 use std::env::var;
+use std::pin;
 use std::sync::Arc;
 use std::time::Duration;
 use anyhow::Context;
@@ -10,7 +11,7 @@ use serenity::all::{Cache, ChannelId, CreateEmbed, EditMessage};
 use serenity::builder::CreateMessage;
 use serenity::model::{Color, Timestamp};
 use serenity::prelude::CacheHttp;
-use tokio::select;
+use tokio::{join, select, try_join};
 use tracing::error;
 use crate::LurkChan;
 
@@ -116,7 +117,6 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
                         a.into_iter().map(|r| format!("* <@!{}> - {}\n", r.claimant, r.count))
                             .collect::<String>()
                     }, false)
-                    .timestamp(Timestamp::now())
                     .color(Color::BLURPLE)
             },
             Err(e) => {
@@ -126,9 +126,75 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
             }
         };
 
-        msg.edit(&ctx, EditMessage::new().content("Stats:").embeds(vec![db_health_embed, leaderboard_embed])).await?;
+
+        let detailed_stats = {
+            let mut c1 = lc.db().await;
+            let mut c2 = lc.db().await;
+            let mut c3 = lc.db().await;
+            let report_counts = try_join!(
+                    sqlx::query!("select count(*) as count from Reports where report_status = 'open'").fetch_one(&mut c1),
+                    sqlx::query!("select count(*) as count from Reports where report_status = 'claimed'").fetch_one(&mut c2),
+                    sqlx::query!("select count(*) as count from Reports where report_status = 'closed' or report_status = 'expired'").fetch_one(&mut c3)
+                ).map(|i| (i.0.count, i.1.count, i.2.count));
+            let audit_counts = try_join!(
+                    sqlx::query!("select count(*) as count from Actions where server = 'sl'").fetch_one(&mut c1),
+                    sqlx::query!("select count(*) as count from Actions where server = 'discord'").fetch_one(&mut c2),
+                    sqlx::query!("select count(*) as count from Actions where report is null").fetch_one(&mut c3)
+                ).map(|i| (i.0.count, i.1.count, i.2.count));
+            match (audit_counts, report_counts) {
+                (Ok(a), Ok(r)) => Ok({
+                    DetailedStats {
+                        open_reports: r.0,
+                        claimed_reports: r.1,
+                        closed_reports: r.2,
+                        sl_actions: a.0,
+                        discord_actions: a.1,
+                        actions_without_report: a.2,
+                    }
+                }),
+                e => Err({
+                    if let Err(e1) = e.0 {
+                        e1
+                    } else if let Err(e2) = e.1 {
+                        e2
+                    } else {
+                        unreachable!();
+                    }
+                })
+            }
+        };
+
+        let detailed_stats_embed = match detailed_stats {
+            Ok(d) => {
+                CreateEmbed::new().title("Detailed Stats")
+                    .color(Color::GOLD)
+                    .field("Open Reports", d.open_reports.to_string(), true)
+                    .field("Claimed Reports", d.claimed_reports.to_string(), true)
+                    .field("Closed Reports", d.closed_reports.to_string(), true)
+                    .field("SL Audits", d.sl_actions.to_string(), true)
+                    .field("Discord Audits", d.discord_actions.to_string(), true)
+                    .field("Audits Without Report", d.actions_without_report.to_string(), true)
+            },
+            Err(e) => {
+                error!("Error fetching DB detailed_stats: {}", e);
+                CreateEmbed::new().title("Failure to fetch data for detailedstats")
+                    .description("Oh fuck! Report this to Wackery ASAP this is fucked!")
+            }
+        };
+
+        let mut emb = vec![db_health_embed, detailed_stats_embed, leaderboard_embed];
+        let new_last = emb.pop().expect("fuck").timestamp(Timestamp::now());
+        emb.push(new_last);
+        msg.edit(&ctx, EditMessage::new().content("Stats:").embeds(emb)).await?;
     }
-
-
     Ok(())
+}
+
+struct DetailedStats {
+    open_reports: i32,
+    claimed_reports: i32,
+    closed_reports: i32,
+    sl_actions: i32,
+    discord_actions: i32,
+    actions_without_report: i32
 }

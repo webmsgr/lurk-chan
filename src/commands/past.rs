@@ -43,7 +43,7 @@ pub fn run<'a>(
             .expect("Value to be a string");
         let (reportee, reportee_count) = {
             (
-                query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reporter_id = ? order by time desc limit 5", id).fetch_all(&mut db).await?,
+                 query_as!(Report, "select reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status as \"report_status: ReportStatus\", server, time, claimant, audit from Reports where reporter_id = ? order by time desc limit 5", id).fetch_all(&mut db).await?,
                 sqlx::query!("select count(*) as \"count\" from Reports where reporter_id = ?", id).fetch_one(&mut db).await?.count
             )
         };

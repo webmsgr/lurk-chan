@@ -22,7 +22,7 @@ pub async fn get_action(id: i64, db: &mut DBConn) -> anyhow::Result<Option<crate
     Ok(r)
 }
 #[must_use]
-pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &Context) -> anyhow::Result<()> {
+pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> anyhow::Result<()> {
     let report = match get_report(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {

@@ -56,6 +56,7 @@ impl Report {
                 ReportStatus::Open => Color::from_rgb(0, 255, 0),
                 ReportStatus::Claimed => Color::from_rgb(255, 255, 0),
                 ReportStatus::Closed => Color::from_rgb(255, 0, 0),
+                ReportStatus::Expired => Color::LIGHT_GREY
             })
             .author(
                 CreateEmbedAuthor::new(self.server).icon_url("https://i.imgur.com/4jVFfFM.webp"),
@@ -73,6 +74,7 @@ impl Report {
     pub fn report_status_string(&self) -> String {
         match self.report_status.clone() {
             ReportStatus::Open => "Open".to_string(),
+            ReportStatus::Expired => "Expired".to_string(),
             ReportStatus::Claimed => match &self.claimant {
                 Some(id) => format!("Claimed by <@!{}>", id),
                 None => "Claimed by ???".to_string(),
@@ -104,6 +106,12 @@ impl Report {
             ))
             .label("Claim")
             .style(ButtonStyle::Primary)])),
+            ReportStatus::Expired => Some(CreateActionRow::Buttons(vec![CreateButton::new(format!(
+                "claim_{}",
+                id
+            ))
+                .label("Reopen and Claim")
+                .style(ButtonStyle::Secondary)])),
             ReportStatus::Claimed => Some(CreateActionRow::Buttons(vec![
                 CreateButton::new(format!("close_{}", id))
                     .label("Close")
@@ -130,4 +138,5 @@ pub enum ReportStatus {
     Open,
     Claimed,
     Closed,
+    Expired
 }

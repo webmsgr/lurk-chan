@@ -1,6 +1,6 @@
 [package]
 name = "lurk_chan"
-version = "1.2.3"
+version = "1.2.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1.0.75", features = ["backtrace"] }
 async-shutdown = "0.2.1"
+chrono = { version = "0.4.31", default-features = false, features = ["alloc", "std", "clock"] }
 clap = { version = "4.4.8", features = ["derive"] }
 color-backtrace = "0.6.1"
 dotenvy = "0.15.7"
