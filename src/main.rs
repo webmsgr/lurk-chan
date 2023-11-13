@@ -129,7 +129,7 @@ async fn main() {
             shard_shutdown_future.await;
             shard_manager.shutdown_all().await;
         })
-        .expect("failed to do the thing");
+        .expect("failed to do the thing").await;
     /*tokio::task::spawn(async move {
         let new_ctx = (&ctx.0, ctx.1.http());
         while ctx.1.application_id().is_none() {
@@ -226,11 +226,11 @@ pub fn report_from_msg(msg: &Message) -> anyhow::Result<Option<Report>> {
         // this is probably a report! yay!
         let mut field_ma = HashMap::with_capacity(embed.fields.len());
         for field in &embed.fields {
-            field_ma.insert(field.name.clone(), field.value.replace("`", ""));
+            field_ma.insert(field.name.clone(), field.value.replace('`', ""));
         }
         // transmute the field_ma into a Report
         //info!("{:#?}", field_ma);
-        let r: Report = match serde_json::to_value(field_ma).and_then(|v| serde_json::from_value(v))
+        let r: Report = match serde_json::to_value(field_ma).and_then(serde_json::from_value)
         {
             Ok(v) => v,
             Err(err) => {

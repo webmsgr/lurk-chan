@@ -33,7 +33,6 @@ pub async fn on_interaction(ctx: Context, interaction: Interaction) {
                         .content("Error! Contact wackery"),
                 )
                 .await;
-            return;
         };
     } else if let Some(modl) = interaction.as_modal_submit() {
         //let _ = modl.defer_ephemeral(&ctx).await;
@@ -96,13 +95,13 @@ async fn on_model(ctx: &Context, modl: &ModalInteraction) -> anyhow::Result<()> 
     //println!("{:?}, {:?}", model_data, modl.message);
     //modl.defer_ephemeral(&ctx).await?;
     let model_data: AuditModelResult = serde_json::to_value(model_data)
-        .and_then(|s| serde_json::from_value(s))
+        .and_then(serde_json::from_value)
         .context("Failed to parse modal")?;
     //println!("{:?}", model_data);
     match s {
         'r' => {
             let report_id = if id > 0 { Some(id) } else { None };
-            let action = model_data.to_action(report_id.clone(), u.id);
+            let action = model_data.into_action(report_id, u.id);
             let chan = match &action.server {
                 Location::Discord => *DISC_AUDIT,
                 Location::SL => *SL_AUDIT,
@@ -112,11 +111,12 @@ async fn on_model(ctx: &Context, modl: &ModalInteraction) -> anyhow::Result<()> 
                 .context("failed to add action")?;
             let a_id = r.last_insert_rowid();
             let comp = action.create_components(a_id, &mut db).await;
-            let e = action.create_embed(&ctx, a_id).await?;
+            let e = action.create_embed(ctx, a_id).await?;
 
-            if let Some(_) = get_audit_message_from_report(id, &mut db, ctx)
+            if get_audit_message_from_report(id, &mut db, ctx)
                 .await
                 .context("Failed to get audit message from report")?
+                .is_some()
             {
                 warn!("Probably a race condition, this is bad!");
                 //m.edit(ctx, EditMessage::default().embed(e).components(comp)).await?;
@@ -149,8 +149,8 @@ async fn on_model(ctx: &Context, modl: &ModalInteraction) -> anyhow::Result<()> 
             let action = get_action(id, &mut db)
                 .await?
                 .ok_or_else(|| anyhow!("No action for id"))?;
-            let mut m_action = model_data.to_action(Some(id), u.id);
-            m_action.report = action.report.clone();
+            let mut m_action = model_data.into_action(Some(id), u.id);
+            m_action.report = action.report;
             m_action.server = action.server.clone();
             let old = serde_json::to_value(&action)?;
             //target_id text not null,
@@ -199,7 +199,7 @@ async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> any
     let (kind, id) = int
         .data
         .custom_id
-        .split_once("_")
+        .split_once('_')
         .expect("Invalid custom id, this should never fuckign happen");
     let id: i64 = id.parse().expect("Failed to parse id, fuck!");
     //let mut m = int.message.clone();
@@ -307,7 +307,7 @@ async fn on_interaction_button(ctx: &Context, int: &ComponentInteraction) -> any
             .execute(&mut db)
             .await?;
         }
-        _ => anyhow::bail!("Invalid interaction: {}", kind),
+        _ => bail!("Invalid interaction: {}", kind),
     }
     update_report_message(id, &mut db, &ctx).await?;
     int.create_followup(

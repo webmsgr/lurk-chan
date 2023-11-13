@@ -21,7 +21,6 @@ pub async fn get_action(id: i64, db: &mut DBConn) -> anyhow::Result<Option<crate
     let r = query_as!(crate::audit::Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where id = ?", id).fetch_optional(db).await?;
     Ok(r)
 }
-#[must_use]
 pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> anyhow::Result<()> {
     let report = match get_report(id, db).await {
         Ok(Some(r)) => r,
@@ -45,7 +44,6 @@ pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &impl CacheHtt
     Ok(())
 }
 
-#[must_use]
 pub async fn update_audit_message(id: i64, db: &mut DBConn, ctx: &Context) -> anyhow::Result<()> {
     let action = match get_action(id, db).await {
         Ok(Some(r)) => r,
@@ -67,7 +65,7 @@ pub async fn update_audit_message(id: i64, db: &mut DBConn, ctx: &Context) -> an
     };
     let comp = action.create_components(id, db).await;
     let embed = action.create_embed(ctx, id).await?;
-    let _ = m
+    m
         .edit(&ctx, EditMessage::default().embed(embed).components(comp))
         .await?;
     Ok(())
@@ -216,9 +214,9 @@ pub async fn get_audit_message_from_report(
             let m = c.message(ctx, m).await?;
             Ok(Some(m))
         } else {
-            return Ok(None);
+            Ok(None)
         }
     } else {
-        return Ok(None);
+        Ok(None)
     }
 }

@@ -10,6 +10,7 @@ use crate::audit::Action;
 use crate::LurkChan;
 use crate::report::Report;
 use crate::audit::Location;
+use std::fmt::Write;
 #[derive(Debug)]
 enum WhereTheFuck {
     Actions,
@@ -92,15 +93,17 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
         .timestamp(Timestamp::now());
     let embed = match q {
         Resultz::Actions((res, c)) => {
-            e.description(res.into_iter().map(|a| {
-                format!("* {} - `{}` -> `{}`\n", a.0, a.1.offense, a.1.action)
-            }).collect::<String>())
+            e.description(res.into_iter().fold(String::new(), |mut o, a| {
+                let _ = writeln!(o, "* {} - `{}` -> `{}`\n", a.0, a.1.offense, a.1.action);
+                o
+            }))
                 .footer(CreateEmbedFooter::new(format!("{} results total", c)))
         }
         Resultz::Reports((res, c)) => {
-            e.description(res.into_iter().map(|a| {
-                format!("* {} - `{}`\n", a.0, a.1.report_reason)
-            }).collect::<String>()).footer(CreateEmbedFooter::new(format!("{} results total", c)))
+            e.description(res.into_iter().fold(String::new(), |mut o, a| {
+                let _ = writeln!(o, "* {} - `{}`", a.0, a.1.report_reason);
+                o
+            })).footer(CreateEmbedFooter::new(format!("{} results total", c)))
         }
     };
     interaction.edit_response(&ctx, EditInteractionResponse::new().embeds(vec![embed])).await?;

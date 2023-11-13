@@ -1,5 +1,4 @@
 use std::env::var;
-use std::pin;
 use std::sync::Arc;
 use std::time::Duration;
 use anyhow::Context;
@@ -11,15 +10,16 @@ use serenity::all::{Cache, ChannelId, CreateEmbed, EditMessage};
 use serenity::builder::CreateMessage;
 use serenity::model::{Color, Timestamp};
 use serenity::prelude::CacheHttp;
-use tokio::{join, select, try_join};
+use tokio::{select, try_join};
 use tracing::error;
 use crate::LurkChan;
+use std::fmt::Write;
 
 
 pub static STATS_CHANNEL: Lazy<ChannelId> = Lazy::new(|| var("STATS_CHANNEL").unwrap().parse().unwrap());
 pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::http::Http>), shut: ShutdownManager<&'static str>) -> anyhow::Result<()> {
     let ctx = (&r_ctx.0, r_ctx.1.http());
-    while let Err(_) = ctx.1.get_current_user().await {
+    while ctx.1.get_current_user().await.is_err() {
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
     tokio::time::sleep(Duration::from_millis(1500)).await;
@@ -27,7 +27,7 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
     let mut s = STATS_CHANNEL.messages_iter(&ctx).boxed();
     let mut m = None;
     while let Ok(Some(e)) = s.try_next().await {
-        if e.is_own(&ctx) {
+        if e.is_own(ctx) {
             m.replace(e);
             break;
         }
@@ -110,12 +110,16 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
             Ok((r, a)) => {
                 CreateEmbed::new().title("Leaderboard")
                     .field("Reports", {
-                        r.into_iter().map(|r| format!("* <@!{}> - {}\n", r.claimant.unwrap_or_else(|| "null".to_string()), r.count))
-                            .collect::<String>()
+                        r.into_iter().fold(String::new(), |mut o, r| {
+                            let _ = writeln!(o, "* <@!{}> - {}", r.claimant.unwrap_or_else(|| "null".to_string()), r.count);
+                            o
+                        })
                     }, false)
                     .field("Audits", {
-                        a.into_iter().map(|r| format!("* <@!{}> - {}\n", r.claimant, r.count))
-                            .collect::<String>()
+                        a.into_iter().fold(String::new(), |mut o, r| {
+                            let _ = writeln!(o, "* <@!{}> - {}", r.claimant, r.count);
+                            o
+                        })
                     }, false)
                     .color(Color::BLURPLE)
             },

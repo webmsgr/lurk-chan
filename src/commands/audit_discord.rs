@@ -19,7 +19,7 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
             .expect("If no user, then message")
     };
     //let user = interaction.data.options.get(0).expect("a user to be provided").value.as_user_id().expect("a user to be a user");
-    let nick = u.global_name.as_ref().unwrap_or_else(|| &u.name).clone();
+    let nick = u.global_name.as_ref().unwrap_or(&u.name).clone();
     interaction
         .create_response(
             ctx,

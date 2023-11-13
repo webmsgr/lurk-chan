@@ -1,6 +1,7 @@
 use std::io::{stdin, IsTerminal};
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 
 use async_shutdown::ShutdownManager;
 
@@ -33,11 +34,13 @@ pub fn spawn_console(
 fn console_thread(tx: UnboundedSender<String>) {
     if !stdin().is_terminal() {
         info!("We are not in a terminal, no console will be used");
-        loop {}
+        loop {
+            thread::sleep(Duration::from_micros(u64::MAX))
+        }
     }
     loop {
         let mut input = String::new();
-        while let Ok(_) = stdin().read_line(&mut input) {
+        while stdin().read_line(&mut input).is_ok() {
             let i = std::mem::take(&mut input);
             if !tx.is_closed() {
                 tx.send(i).expect("to not be closed");
@@ -71,7 +74,7 @@ async fn console_process(
                     }
                 };
 
-                match Command::try_parse_from(msg).and_then(|e| Ok(e.command.clone())) {
+                match Command::try_parse_from(msg).map(|e| e.command.clone()) {
                     Ok(Commands::Quit) => {
                         let _ = s.trigger_shutdown("Console request");
                     },

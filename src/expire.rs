@@ -5,7 +5,7 @@ use anyhow::Context;
 use async_shutdown::ShutdownManager;
 use chrono::{DateTime, Utc};
 use futures::{StreamExt, TryStreamExt};
-use serenity::all::{Cache, Timestamp};
+use serenity::all::Cache;
 use tokio::select;
 use tracing::info;
 use crate::db::update_report_message;
@@ -13,7 +13,7 @@ use crate::LurkChan;
 
 pub async fn expire_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::http::Http>), shut: ShutdownManager<&'static str>) -> anyhow::Result<()> {
     let ctx = (&r_ctx.0, r_ctx.1.http());
-    while let Err(_) = ctx.1.get_current_user().await {
+    while ctx.1.get_current_user().await.is_err() {
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
     tokio::time::sleep(Duration::from_millis(1500)).await;
@@ -39,7 +39,7 @@ pub async fn expire_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::ht
                 to_close.push(t.id)
             }
         }
-        if to_close.len() == 0 {
+        if to_close.is_empty() {
             continue;
         }
         info!("Expiring {} reports", to_close.len());

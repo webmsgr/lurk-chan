@@ -18,7 +18,7 @@ use serenity::model::{application, Permissions};
 use serenity::prelude::*;
 use tracing::{error, info, instrument};
 
-const DEV_GUILD: Lazy<Option<GuildId>> = Lazy::new(|| var("DEV_GUILD").ok().map(|i| GuildId::new(i.parse().expect("Failed to load dev_guild"))));
+static DEV_GUILD: Lazy<GuildId> = Lazy::new(|| var("DEV_GUILD").ok().map(|i| GuildId::new(i.parse().expect("Failed to load dev_guild"))).unwrap());
 
 pub async fn run_command(ctx: &Context, interact: &CommandInteraction) {
     let cmd = interact.data.name.as_str();
@@ -62,7 +62,7 @@ fn does_fit(user: &Member, perm: PermLevel, ctx: &Context) -> bool {
             user.roles
                 .iter()
                 .any(|role| {
-                    role.to_role_cached(&ctx).is_some_and(|e| {
+                    role.to_role_cached(ctx).is_some_and(|e| {
                         e.permissions.contains(Permissions::ADMINISTRATOR)
                             || e.name.contains("Admin")
                             || e.name.contains("Mod")
@@ -106,7 +106,7 @@ fn do_perms(c: CreateCommand) -> CreateCommand {
 macro_rules! register_command {
     ($ctx:expr, $cmd:expr) => {
         if cfg!(debug_assertions) {
-            DEV_GUILD.as_ref().unwrap().create_command($ctx, $cmd).await
+            DEV_GUILD.create_command($ctx, $cmd).await
         } else {
             application::Command::create_global_command($ctx, $cmd)
             .await
@@ -151,7 +151,7 @@ pub async fn register_commands(ctx: &impl CacheHttp) {
         info!("Commands will be registered in all guilds");
     }
     let commands = if cfg!(debug_assertions) {
-        DEV_GUILD.as_ref().unwrap().get_commands(ctx.http()).await.unwrap()
+        DEV_GUILD.get_commands(ctx.http()).await.unwrap()
     } else {
         application::Command::get_global_commands(ctx.http())
             .await
@@ -160,7 +160,7 @@ pub async fn register_commands(ctx: &impl CacheHttp) {
     for command in commands {
         info!("Unregistering command {}", command.name);
         if cfg!(debug_assertions) {
-            DEV_GUILD.as_ref().unwrap().delete_command(ctx.http(), command.id).await.unwrap();
+            DEV_GUILD.delete_command(ctx.http(), command.id).await.unwrap();
         } else {
             application::Command::delete_global_command(ctx.http(), command.id)
                 .await

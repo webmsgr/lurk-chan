@@ -31,7 +31,7 @@ pub struct AuditModelResult {
 }
 
 impl AuditModelResult {
-    pub fn to_action(self, report_id: Option<i64>, user: UserId) -> Action {
+    pub fn into_action(self, report_id: Option<i64>, user: UserId) -> Action {
         Action {
             target_username: self.name,
             target_id: self.id,
@@ -75,7 +75,7 @@ impl Action {
         let nick = u
             .nick_in(ctx, g)
             .await
-            .unwrap_or_else(|| u.global_name.as_ref().unwrap_or_else(|| &u.name).clone());
+            .unwrap_or_else(|| u.global_name.as_ref().unwrap_or( &u.name).clone());
         //let ch = SL_AUDIT.to_channel(ctx).await.unwrap().g;
         Ok(CreateEmbed::default()
             .title(format!("Audit Log #{}", id))

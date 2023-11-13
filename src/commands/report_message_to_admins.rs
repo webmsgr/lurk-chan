@@ -9,7 +9,7 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
         .create_response(
             ctx,
             CreateInteractionResponse::Message(CreateInteractionResponseMessage::new().content({
-                format!("nah")
+                "nah"
             }).ephemeral(true)),
         )
         .await?;

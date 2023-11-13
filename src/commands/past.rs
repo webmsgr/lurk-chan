@@ -5,7 +5,6 @@ use serenity::builder::{
 };
 use serenity::prelude::*;
 use sqlx::query_as;
-use std::future::Future;
 use std::sync::Arc;
 
 use crate::audit::Action;
@@ -13,12 +12,11 @@ use crate::audit::Location;
 use crate::report::ReportStatus;
 use crate::LurkChan;
 use crate::Report;
-
-pub fn run<'a>(
-    ctx: &'a Context,
-    interaction: &'a CommandInteraction,
-) -> impl Future<Output = anyhow::Result<()>> + Send + 'a {
-    async move {
+use std::fmt::Write;
+pub async fn run(
+    ctx: &Context,
+    interaction: &CommandInteraction,
+) -> anyhow::Result<()> {
         interaction
             .create_response(
                 ctx,
@@ -66,26 +64,29 @@ pub fn run<'a>(
         .title(format!("{}'s past...", id))
         .description(format!("{} has been:\n- Reported {} time(s)\n- Reported someone {} time(s)\n- Had action taken against them {} time(s)",id, reported_count, reportee_count, actions_count))
         .field("Recent reported", {
-            reported.into_iter().map(|i| {
-                format!("- Reported by {} on <t:{}:f> for '{}' ({})\n", i.reporter_name, i.time.parse::<Timestamp>().expect("invalid timestamp").timestamp(), i.report_reason, i.report_status_string())
-            }).collect::<String>()
+            reported.into_iter().fold(String::new(), |mut o, i| {
+                let _ = writeln!(o, "- Reported by {} on <t:{}:f> for '{}' ({})", i.reporter_name, i.time.parse::<Timestamp>().expect("invalid timestamp").timestamp(), i.report_reason, i.report_status_string());
+                o
+            })
         }, false)
         .field("Recent reports", {
-            reportee.into_iter().map(|i| {
-                format!("- Reported {} on <t:{}:f> for '{}' ({})\n", i.reported_name, i.time.parse::<Timestamp>().expect("invalid timestamp").timestamp(), i.report_reason, i.report_status_string())
-            }).collect::<String>()
+            reportee.into_iter().fold(String::new(), |mut o, i| {
+                let _ = writeln!(o, "- Reported {} on <t:{}:f> for '{}' ({})", i.reported_name, i.time.parse::<Timestamp>().expect("invalid timestamp").timestamp(), i.report_reason, i.report_status_string());
+                o
+            })
         }, false)
         .field("Recent action", {
-            actions.into_iter().map(|i| {
-                format!("- '{}' for '{}' by <@!{}> ({})\n", i.action, i.offense, i.claimant, i.report.and_then(|o| Some(o.to_string())).unwrap_or_else(|| "No report".to_string()))
-            }).collect::<String>()
+            actions.into_iter().fold(String::new(), |mut o, i| {
+                let _ = writeln!(o, "- '{}' for '{}' by <@!{}> ({})", i.action, i.offense, i.claimant, i.report.map(|o| o.to_string()).unwrap_or_else(|| "No report".to_string()));
+                o
+            })
         }, false);
         interaction
             .edit_response(&ctx, EditInteractionResponse::new().embed(modal))
             .await?;
         //info!("reportee: {:?}, reported: {:?}",reportee, reported);
         Ok(())
-    }
+
 }
 
 pub fn register() -> (CreateCommand, &'static str) {
