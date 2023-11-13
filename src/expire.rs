@@ -8,6 +8,7 @@ use futures::{StreamExt, TryStreamExt};
 use serenity::all::Cache;
 use tokio::select;
 use tracing::info;
+use tracing::warn;
 use crate::db::update_report_message;
 use crate::LurkChan;
 
@@ -46,7 +47,9 @@ pub async fn expire_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::ht
         let mut db = lc.db().await;
         for report in to_close {
             sqlx::query!("update Reports set report_status = 'expired' where id = ?", report).execute(&mut db).await?;
-            let _ = update_report_message(report, &mut db, &ctx).await;
+            if let Err(e) = update_report_message(report, &mut db, &ctx).await {
+                warn!("Failed to update report message #{}: {}", report, e);
+            }
         }
         info!("expire complete");
     }
