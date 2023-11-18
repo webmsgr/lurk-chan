@@ -1,4 +1,4 @@
-use crate::{LurkChan, NOW};
+use crate::{LurkChan};
 use anyhow::Context;
 use async_shutdown::ShutdownManager;
 use futures::StreamExt;

@@ -1,14 +1,14 @@
 use crate::audit::{Action as AuditAction, Location, DISC_AUDIT};
 use crate::db::{add_action, add_action_message};
 use crate::LurkChan;
-use anyhow::{bail, Context as _};
+use anyhow::{Context as _};
 use serenity::all::audit_log::Action;
 use serenity::all::{
-    AuditLogEntry, Change, CreateMessage, GuildId, MemberAction, MessageAction, UserId,
+    AuditLogEntry, Change, CreateMessage, GuildId, MemberAction, UserId,
 };
 use serenity::prelude::*;
 use std::sync::Arc;
-use tracing::{debug, info, instrument};
+use tracing::{debug, instrument};
 
 #[instrument(skip(ctx, entry))]
 pub async fn on_guild_audit(

@@ -15,7 +15,7 @@ use serenity::all::{
 use serenity::builder::{
     CreateCommand, CreateInteractionResponse, CreateInteractionResponseMessage,
 };
-use serenity::json::hashmap_to_json_map;
+
 use serenity::model::Timestamp;
 use serenity::prelude::*;
 use sqlx::{Either, Execute, Row};
