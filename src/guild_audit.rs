@@ -42,7 +42,7 @@ pub async fn on_guild_audit(
                                     .reason.as_deref()
                                     .unwrap_or("???")
                                     .to_string(),
-                                action: format!("Timeout until <t:{}:f>", new.unix_timestamp()),
+                                action: format!("Timeout until <t:{0}:f> (<t:{0}:R>)", new.unix_timestamp()),
                                 server: Location::Discord,
                                 claimant: entry.user_id.to_string(),
                                 report: None,
