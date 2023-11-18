@@ -8,14 +8,19 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
     interaction
         .create_response(
             ctx,
-            CreateInteractionResponse::Message(CreateInteractionResponseMessage::new().content({
-                "nah"
-            }).ephemeral(true)),
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content("nah")
+                    .ephemeral(true),
+            ),
         )
         .await?;
     Ok(())
 }
 
 pub fn register() -> (CreateCommand, &'static str) {
-    (CreateCommand::new("Report Message").kind(CommandType::Message), "Report Message")
+    (
+        CreateCommand::new("Report Message").kind(CommandType::Message),
+        "Report Message",
+    )
 }

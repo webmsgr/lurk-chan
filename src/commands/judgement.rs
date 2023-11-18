@@ -19,11 +19,15 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
 }
 
 pub fn register() -> (CreateCommand, &'static str) {
-    (CreateCommand::new("when")
-        .description("when")
-        .add_option(CreateCommandOption::new(
-            CommandOptionType::SubCommandGroup,
-            "day",
-            "day",
-        ).add_sub_option(CreateCommandOption::new(CommandOptionType::SubCommand, "breaks", "Golden days. In the sunshine of a happy youth"))), "when")
+    (
+        CreateCommand::new("when").description("when").add_option(
+            CreateCommandOption::new(CommandOptionType::SubCommandGroup, "day", "day")
+                .add_sub_option(CreateCommandOption::new(
+                    CommandOptionType::SubCommand,
+                    "breaks",
+                    "Golden days. In the sunshine of a happy youth",
+                )),
+        ),
+        "when",
+    )
 }

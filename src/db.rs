@@ -21,12 +21,16 @@ pub async fn get_action(id: i64, db: &mut DBConn) -> anyhow::Result<Option<crate
     let r = query_as!(crate::audit::Action, "select target_id, target_username, offense, action, server as \"server: Location\", claimant, report from Actions where id = ?", id).fetch_optional(db).await?;
     Ok(r)
 }
-pub async fn update_report_message(id: i64, db: &mut DBConn, ctx: &impl CacheHttp) -> anyhow::Result<()> {
+pub async fn update_report_message(
+    id: i64,
+    db: &mut DBConn,
+    ctx: &impl CacheHttp,
+) -> anyhow::Result<()> {
     let report = match get_report(id, db).await {
         Ok(Some(r)) => r,
         Ok(None) => {
             //error!("No report for: {}", id);
-            return Err(anyhow!("No report for id: {}",id));
+            return Err(anyhow!("No report for id: {}", id));
         }
         Err(e) => {
             return Err(e);
@@ -65,8 +69,7 @@ pub async fn update_audit_message(id: i64, db: &mut DBConn, ctx: &Context) -> an
     };
     let comp = action.create_components(id, db).await;
     let embed = action.create_embed(ctx, id).await?;
-    m
-        .edit(&ctx, EditMessage::default().embed(embed).components(comp))
+    m.edit(&ctx, EditMessage::default().embed(embed).components(comp))
         .await?;
     Ok(())
 }
@@ -150,7 +153,8 @@ pub async fn get_report_message_from_id(
         rid
     )
     .fetch_optional(db)
-    .await?.with_context(|| format!("No report message found for report {}", rid))?;
+    .await?
+    .with_context(|| format!("No report message found for report {}", rid))?;
     let m = MessageId::new(
         rec.message
             .parse::<u64>()

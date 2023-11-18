@@ -1,10 +1,9 @@
+use crate::audit::SL_AUDIT;
+use crate::lc::DBConn;
 use serde::{Deserialize, Serialize};
 use serenity::all::CreateEmbedFooter;
 use serenity::builder::{CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor};
 use serenity::model::prelude::*;
-//use serenity::mde::Color;
-use crate::audit::SL_AUDIT;
-use crate::lc::DBConn;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Report {
@@ -56,7 +55,7 @@ impl Report {
                 ReportStatus::Open => Color::from_rgb(0, 255, 0),
                 ReportStatus::Claimed => Color::from_rgb(255, 255, 0),
                 ReportStatus::Closed => Color::from_rgb(255, 0, 0),
-                ReportStatus::Expired => Color::LIGHT_GREY
+                ReportStatus::Expired => Color::LIGHT_GREY,
             })
             .author(
                 CreateEmbedAuthor::new(self.server).icon_url("https://i.imgur.com/4jVFfFM.webp"),
@@ -106,12 +105,11 @@ impl Report {
             ))
             .label("Claim")
             .style(ButtonStyle::Primary)])),
-            ReportStatus::Expired => Some(CreateActionRow::Buttons(vec![CreateButton::new(format!(
-                "claim_{}",
-                id
-            ))
-                .label("Reopen and Claim")
-                .style(ButtonStyle::Secondary)])),
+            ReportStatus::Expired => Some(CreateActionRow::Buttons(vec![CreateButton::new(
+                format!("claim_{}", id),
+            )
+            .label("Reopen and Claim")
+            .style(ButtonStyle::Secondary)])),
             ReportStatus::Claimed => Some(CreateActionRow::Buttons(vec![
                 CreateButton::new(format!("close_{}", id))
                     .label("Close")
@@ -131,12 +129,23 @@ impl Report {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, sqlx::Type, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
 pub enum ReportStatus {
     #[default]
     Open,
     Claimed,
     Closed,
-    Expired
+    Expired,
+}
+
+impl ToString for ReportStatus {
+    fn to_string(&self) -> String {
+        match self {
+            ReportStatus::Open => "open".to_string(),
+            ReportStatus::Claimed => "claimed".to_string(),
+            ReportStatus::Closed => "closed".to_string(),
+            ReportStatus::Expired => "expired".to_string(),
+        }
+    }
 }

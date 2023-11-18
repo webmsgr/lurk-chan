@@ -6,8 +6,8 @@ use crate::db::{
 use crate::prefabs::audit_log_modal;
 
 use crate::{commands, LurkChan};
-use anyhow::{anyhow, bail};
 use anyhow::Context as _;
+use anyhow::{anyhow, bail};
 use serenity::all::EditInteractionResponse;
 use serenity::builder::{
     CreateInteractionResponse, CreateInteractionResponseFollowup, CreateInteractionResponseMessage,

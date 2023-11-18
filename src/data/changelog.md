@@ -1,3 +1,12 @@
+# 1.2.5
+* auto audit log.
+* 3 whole new messages!
+* 2% chance to react with :yeshoney: if a message contains "oomfie", "uwu", or "owo"
+* i added changelogs like 3 versions ago but i never displayed them
+* updated my dev env to rust 1.74.0
+* added the /query command. try playing around with it.
+* fixed uptime!
+
 # 1.2.4
 * fucking hate the past command (fixed bugs)
 * added more stats.

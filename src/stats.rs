@@ -1,23 +1,27 @@
-use std::env::var;
-use std::sync::Arc;
-use std::time::Duration;
+use crate::{LurkChan, NOW};
 use anyhow::Context;
 use async_shutdown::ShutdownManager;
 use futures::StreamExt;
-use serenity::futures::TryStreamExt;
 use once_cell::sync::Lazy;
 use serenity::all::{Cache, ChannelId, CreateEmbed, EditMessage};
 use serenity::builder::CreateMessage;
+use serenity::futures::TryStreamExt;
 use serenity::model::{Color, Timestamp};
 use serenity::prelude::CacheHttp;
+use std::env::var;
+use std::fmt::Write;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::{select, try_join};
 use tracing::error;
-use crate::LurkChan;
-use std::fmt::Write;
 
-
-pub static STATS_CHANNEL: Lazy<ChannelId> = Lazy::new(|| var("STATS_CHANNEL").unwrap().parse().unwrap());
-pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::http::Http>), shut: ShutdownManager<&'static str>) -> anyhow::Result<()> {
+pub static STATS_CHANNEL: Lazy<ChannelId> =
+    Lazy::new(|| var("STATS_CHANNEL").unwrap().parse().unwrap());
+pub async fn stats_task(
+    lc: Arc<LurkChan>,
+    r_ctx: (Arc<Cache>, Arc<serenity::http::Http>),
+    shut: ShutdownManager<&'static str>,
+) -> anyhow::Result<()> {
     let ctx = (&r_ctx.0, r_ctx.1.http());
     while ctx.1.get_current_user().await.is_err() {
         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -34,10 +38,18 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
     }
     let mut msg = match m {
         Some(m) => m,
-        None => STATS_CHANNEL.send_message(&ctx, CreateMessage::new().content("Loading first time stats...")).await.context("Failed to send new message")?
+        None => STATS_CHANNEL
+            .send_message(
+                &ctx,
+                CreateMessage::new().content("Loading first time stats..."),
+            )
+            .await
+            .context("Failed to send new message")?,
     };
-    let mut interval = tokio::time::interval(Duration::from_secs(60));
+    const TIME: u64 = 30;
+    let mut interval = tokio::time::interval(Duration::from_secs(TIME));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut uptime = chrono::Duration::seconds(-(TIME as i64));
     loop {
         select! {
             _ = interval.tick() => {  },
@@ -45,33 +57,94 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
                 break;
             }
         }
+        uptime = uptime + chrono::Duration::seconds(TIME as i64);
         // collect stats.
         let mut db = lc.db().await;
         let db_data: Result<(i64, i64, i64, i64, usize, bool), sqlx::Error> = async move {
-            let report_count = sqlx::query!("select count(*) as \"count: i64\" from Reports").fetch_one(&mut db).await?.count;
-            let action_count = sqlx::query!("select count(*) as \"count: i64\" from Actions").fetch_one(&mut db).await?.count;
-            let report_message_count = sqlx::query!("select count(*) as \"count: i64\" from ReportMessages").fetch_one(&mut db).await?.count;
-            let action_message_count = sqlx::query!("select count(*) as \"count: i64\" from ActionMessages").fetch_one(&mut db).await?.count;
-            let invalid_keys = sqlx::query!("PRAGMA foreign_key_check").fetch_all(&mut db).await?.len();
-            let integrety_check = sqlx::query!("PRAGMA integrity_check").fetch_one(&mut db).await?.integrity_check == "ok";
+            let report_count = sqlx::query!("select count(*) as \"count: i64\" from Reports")
+                .fetch_one(&mut db)
+                .await?
+                .count;
+            let action_count = sqlx::query!("select count(*) as \"count: i64\" from Actions")
+                .fetch_one(&mut db)
+                .await?
+                .count;
+            let report_message_count =
+                sqlx::query!("select count(*) as \"count: i64\" from ReportMessages")
+                    .fetch_one(&mut db)
+                    .await?
+                    .count;
+            let action_message_count =
+                sqlx::query!("select count(*) as \"count: i64\" from ActionMessages")
+                    .fetch_one(&mut db)
+                    .await?
+                    .count;
+            let invalid_keys = sqlx::query!("PRAGMA foreign_key_check")
+                .fetch_all(&mut db)
+                .await?
+                .len();
+            let integrety_check = sqlx::query!("PRAGMA integrity_check")
+                .fetch_one(&mut db)
+                .await?
+                .integrity_check
+                == "ok";
             //let audit_message_count = sqlx::query!("select count(*) as \"count: i64\" from ").fetch_one(db).await.unwrap().count;
-            Ok((report_count, action_count, report_message_count, action_message_count, invalid_keys, integrety_check))
-        }.await;
+            Ok((
+                report_count,
+                action_count,
+                report_message_count,
+                action_message_count,
+                invalid_keys,
+                integrety_check,
+            ))
+        }
+        .await;
 
         let db_health_embed = match db_data {
-            Ok((report_count, action_count, report_message_count, action_message_count, invalid_keys, integrety_check)) => {
+            Ok((
+                report_count,
+                action_count,
+                report_message_count,
+                action_message_count,
+                invalid_keys,
+                integrety_check,
+            )) => {
                 let is_db_healthy = invalid_keys == 0 && integrety_check;
-                CreateEmbed::new().title(format!("DB Status: {}", if is_db_healthy {
-                    "Healthy"
-                } else {
-                    "Unhealthy"
-                }))
+                CreateEmbed::new()
+                    .title(format!(
+                        "DB Status: {}",
+                        if is_db_healthy {
+                            "Healthy"
+                        } else {
+                            "Unhealthy"
+                        }
+                    ))
                     .field("Report Count", report_count.to_string(), true)
                     .field("Action Count", action_count.to_string(), true)
-                    .field("Report Message Count", report_message_count.to_string(), true)
-                    .field("Action Message Count", action_message_count.to_string(), true)
-                    .field("Foreign Key Violations", if invalid_keys == 0 { "None".to_string() } else { format!("{}", invalid_keys) }, true)
-                    .field("Database integrity", if integrety_check { "OK" } else { "FUCKED" }, true)
+                    .field(
+                        "Report Message Count",
+                        report_message_count.to_string(),
+                        true,
+                    )
+                    .field(
+                        "Action Message Count",
+                        action_message_count.to_string(),
+                        true,
+                    )
+                    .field(
+                        "Foreign Key Violations",
+                        if invalid_keys == 0 {
+                            "None".to_string()
+                        } else {
+                            format!("{}", invalid_keys)
+                        },
+                        true,
+                    )
+                    .field(
+                        "Database integrity",
+                        if integrety_check { "OK" } else { "FUCKED" },
+                        true,
+                    )
                     .color(if is_db_healthy {
                         Color::from_rgb(0, 255, 0)
                     } else {
@@ -80,10 +153,11 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
             }
             Err(e) => {
                 error!("Error fetching DB stats: {}", e);
-                CreateEmbed::new().title("DB Status: Failure").description("Oh fuck! Report this to Wackery ASAP this is fucked!")
+                CreateEmbed::new()
+                    .title("DB Status: Failure")
+                    .description("Oh fuck! Report this to Wackery ASAP this is fucked!")
             }
         };
-
 
         let leaderboard_entries = {
             const L_COUNT: i64 = 10;
@@ -102,34 +176,46 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
                     } else {
                         unreachable!();
                     }
-                })
+                }),
             }
         };
 
         let leaderboard_embed = match leaderboard_entries {
-            Ok((r, a)) => {
-                CreateEmbed::new().title("Leaderboard")
-                    .field("Reports", {
+            Ok((r, a)) => CreateEmbed::new()
+                .title("Leaderboard")
+                .field(
+                    "Reports",
+                    {
                         r.into_iter().fold(String::new(), |mut o, r| {
-                            let _ = writeln!(o, "* <@!{}> - {}", r.claimant.unwrap_or_else(|| "null".to_string()), r.count);
+                            let _ = writeln!(
+                                o,
+                                "* <@!{}> - {}",
+                                r.claimant.unwrap_or_else(|| "null".to_string()),
+                                r.count
+                            );
                             o
                         })
-                    }, false)
-                    .field("Audits", {
+                    },
+                    false,
+                )
+                .field(
+                    "Audits",
+                    {
                         a.into_iter().fold(String::new(), |mut o, r| {
                             let _ = writeln!(o, "* <@!{}> - {}", r.claimant, r.count);
                             o
                         })
-                    }, false)
-                    .color(Color::BLURPLE)
-            },
+                    },
+                    false,
+                )
+                .color(Color::BLURPLE),
             Err(e) => {
                 error!("Error fetching DB leaderboard: {}", e);
-                CreateEmbed::new().title("Failure to fetch data for leaderboard")
+                CreateEmbed::new()
+                    .title("Failure to fetch data for leaderboard")
                     .description("Oh fuck! Report this to Wackery ASAP this is fucked!")
             }
         };
-
 
         let detailed_stats = {
             let mut c1 = lc.db().await;
@@ -141,10 +227,14 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
                     sqlx::query!("select count(*) as count from Reports where report_status = 'closed' or report_status = 'expired'").fetch_one(&mut c3)
                 ).map(|i| (i.0.count, i.1.count, i.2.count));
             let audit_counts = try_join!(
-                    sqlx::query!("select count(*) as count from Actions where server = 'sl'").fetch_one(&mut c1),
-                    sqlx::query!("select count(*) as count from Actions where server = 'discord'").fetch_one(&mut c2),
-                    sqlx::query!("select count(*) as count from Actions where report is null").fetch_one(&mut c3)
-                ).map(|i| (i.0.count, i.1.count, i.2.count));
+                sqlx::query!("select count(*) as count from Actions where server = 'sl'")
+                    .fetch_one(&mut c1),
+                sqlx::query!("select count(*) as count from Actions where server = 'discord'")
+                    .fetch_one(&mut c2),
+                sqlx::query!("select count(*) as count from Actions where report is null")
+                    .fetch_one(&mut c3)
+            )
+            .map(|i| (i.0.count, i.1.count, i.2.count));
             match (audit_counts, report_counts) {
                 (Ok(a), Ok(r)) => Ok({
                     DetailedStats {
@@ -164,32 +254,70 @@ pub async fn stats_task(lc: Arc<LurkChan>, r_ctx: (Arc<Cache>, Arc<serenity::htt
                     } else {
                         unreachable!();
                     }
-                })
+                }),
             }
         };
 
         let detailed_stats_embed = match detailed_stats {
-            Ok(d) => {
-                CreateEmbed::new().title("Detailed Stats")
-                    .color(Color::GOLD)
-                    .field("Open Reports", d.open_reports.to_string(), true)
-                    .field("Claimed Reports", d.claimed_reports.to_string(), true)
-                    .field("Closed Reports", d.closed_reports.to_string(), true)
-                    .field("SL Audits", d.sl_actions.to_string(), true)
-                    .field("Discord Audits", d.discord_actions.to_string(), true)
-                    .field("Audits Without Report", d.actions_without_report.to_string(), true)
-            },
+            Ok(d) => CreateEmbed::new()
+                .title("Detailed Stats")
+                .color(Color::GOLD)
+                .field("Open Reports", d.open_reports.to_string(), true)
+                .field("Claimed Reports", d.claimed_reports.to_string(), true)
+                .field("Closed Reports", d.closed_reports.to_string(), true)
+                .field("SL Audits", d.sl_actions.to_string(), true)
+                .field("Discord Audits", d.discord_actions.to_string(), true)
+                .field(
+                    "Audits Without Report",
+                    d.actions_without_report.to_string(),
+                    true,
+                ),
             Err(e) => {
                 error!("Error fetching DB detailed_stats: {}", e);
-                CreateEmbed::new().title("Failure to fetch data for detailedstats")
+                CreateEmbed::new()
+                    .title("Failure to fetch data for detailedstats")
                     .description("Oh fuck! Report this to Wackery ASAP this is fucked!")
             }
         };
 
-        let mut emb = vec![db_health_embed, detailed_stats_embed, leaderboard_embed];
+        let raw_change_log = include_str!("./data/changelog.md");
+        let actual_change_log = raw_change_log
+            .lines()
+            .map_while(|l| if l.is_empty() { None } else { Some(l) })
+            .fold(String::new(), |mut o, i| {
+                writeln!(o, "{}", i).unwrap();
+                o
+            });
+
+        let about_embed = CreateEmbed::new()
+            .color(Color::from((0xff, 0x6e, 0xee)))
+            .title(concat!("Lurk-Chan v", env!("CARGO_PKG_VERSION")))
+            .field(
+                "Changelog",
+                format!("```md\n{}```", actual_change_log),
+                false,
+            )
+            .field(
+                "Uptime",
+                format!(
+                    "{:<02}:{:<02}:{:<02}:{:<02}",
+                    uptime.num_days(),
+                    uptime.num_hours() % 24,
+                    uptime.num_minutes() % 60,
+                    uptime.num_seconds() % 60
+                ),
+                false,
+            );
+        let mut emb = vec![
+            about_embed,
+            db_health_embed,
+            detailed_stats_embed,
+            leaderboard_embed,
+        ];
         let new_last = emb.pop().expect("fuck").timestamp(Timestamp::now());
         emb.push(new_last);
-        msg.edit(&ctx, EditMessage::new().content("Stats:").embeds(emb)).await?;
+        msg.edit(&ctx, EditMessage::new().content("Stats:").embeds(emb))
+            .await?;
     }
     Ok(())
 }
@@ -200,5 +328,5 @@ struct DetailedStats {
     closed_reports: i32,
     sl_actions: i32,
     discord_actions: i32,
-    actions_without_report: i32
+    actions_without_report: i32,
 }

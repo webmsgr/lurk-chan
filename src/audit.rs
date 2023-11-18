@@ -8,7 +8,6 @@ use serenity::model::prelude::*;
 use serenity::model::Color;
 use std::env::var;
 
-
 use crate::lc::DBConn;
 
 pub static SL_AUDIT: Lazy<ChannelId> = Lazy::new(|| var("SL_AUDIT").unwrap().parse().unwrap());
@@ -20,6 +19,15 @@ pub enum Location {
     #[default]
     SL,
     Discord,
+}
+
+impl ToString for Location {
+    fn to_string(&self) -> String {
+        match self {
+            Location::SL => "sl".to_string(),
+            Location::Discord => "discord".to_string(),
+        }
+    }
 }
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct AuditModelResult {
@@ -75,7 +83,7 @@ impl Action {
         let nick = u
             .nick_in(ctx, g)
             .await
-            .unwrap_or_else(|| u.global_name.as_ref().unwrap_or( &u.name).clone());
+            .unwrap_or_else(|| u.global_name.as_ref().unwrap_or(&u.name).clone());
         //let ch = SL_AUDIT.to_channel(ctx).await.unwrap().g;
         Ok(CreateEmbed::default()
             .title(format!("Audit Log #{}", id))

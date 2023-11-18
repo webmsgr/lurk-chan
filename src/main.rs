@@ -18,7 +18,7 @@ use tokio::select;
 
 use crate::audit::{DISC_AUDIT, SL_AUDIT};
 use crate::report::Report;
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use serenity::builder::CreateMessage;
 use serenity::gateway::ActivityData;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
@@ -27,16 +27,19 @@ use std::collections::HashMap;
 use std::env::var;
 use std::path::PathBuf;
 
+use rand::Rng;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info, instrument};
 
 mod autorespond;
+mod expire;
+mod guild_audit;
 /// this struct is passed around in an arc to share state
 mod lc;
 mod stats;
-mod expire;
 
+use crate::guild_audit::on_guild_audit;
 pub use lc::LurkChan;
 
 #[tokio::main]
@@ -105,18 +108,26 @@ async fn main() {
     let shard_manager = client.shard_manager.clone();
     let ctx = (client.cache.clone(), client.http.clone());
     let stats_shutdown = shutdown.clone();
-    tokio::task::spawn(shutdown.wrap_delay_shutdown(async move {
-        if let Err(e) = stats::stats_task(stats_lc, ctx, stats_shutdown).await {
-            error!("Stats task error: {:?}", e);
-        };
-    }).expect("Shutdown!"));
+    tokio::task::spawn(
+        shutdown
+            .wrap_delay_shutdown(async move {
+                if let Err(e) = stats::stats_task(stats_lc, ctx, stats_shutdown).await {
+                    error!("Stats task error: {:?}", e);
+                };
+            })
+            .expect("Shutdown!"),
+    );
     let ctx = (client.cache.clone(), client.http.clone());
     let expire_shut = shutdown.clone();
-    tokio::task::spawn(shutdown.wrap_delay_shutdown(async move {
-        if let Err(e) = expire::expire_task(expire_lc, ctx, expire_shut).await {
-            error!("Expire task error: {:?}", e);
-        };
-    }).expect("Shutdown!"));
+    tokio::task::spawn(
+        shutdown
+            .wrap_delay_shutdown(async move {
+                if let Err(e) = expire::expire_task(expire_lc, ctx, expire_shut).await {
+                    error!("Expire task error: {:?}", e);
+                };
+            })
+            .expect("Shutdown!"),
+    );
     tokio::task::spawn(shutdown.wrap_trigger_shutdown("Client died", async move {
         if let Err(c) = client.start_autosharded().await {
             error!("Error running client {:?}", c);
@@ -129,7 +140,8 @@ async fn main() {
             shard_shutdown_future.await;
             shard_manager.shutdown_all().await;
         })
-        .expect("failed to do the thing").await;
+        .expect("failed to do the thing")
+        .await;
     /*tokio::task::spawn(async move {
         let new_ctx = (&ctx.0, ctx.1.http());
         while ctx.1.application_id().is_none() {
@@ -230,8 +242,7 @@ pub fn report_from_msg(msg: &Message) -> anyhow::Result<Option<Report>> {
         }
         // transmute the field_ma into a Report
         //info!("{:#?}", field_ma);
-        let r: Report = match serde_json::to_value(field_ma).and_then(serde_json::from_value)
-        {
+        let r: Report = match serde_json::to_value(field_ma).and_then(serde_json::from_value) {
             Ok(v) => v,
             Err(err) => {
                 return Err(err.into());
@@ -241,6 +252,8 @@ pub fn report_from_msg(msg: &Message) -> anyhow::Result<Option<Report>> {
     }
     Ok(None)
 }
+
+pub static NOW: OnceCell<Timestamp> = OnceCell::new();
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -254,9 +267,20 @@ impl EventHandler for Handler {
             "for new reports! (v{})",
             env!("CARGO_PKG_VERSION")
         ))));
+        let _ = NOW.set(Timestamp::now());
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         interactions::on_interaction(ctx, interaction).await;
+    }
+    async fn guild_audit_log_entry_create(
+        &self,
+        ctx: Context,
+        entry: AuditLogEntry,
+        guild_id: GuildId,
+    ) {
+        if let Err(e) = on_guild_audit(ctx, entry, guild_id).await {
+            error!("Error handling audit: {}", e);
+        }
     }
     #[instrument(skip(ctx, new_message, self))]
     async fn message(&self, ctx: Context, new_message: Message) {
@@ -282,6 +306,32 @@ async fn on_message(ctx: Context, new_message: Message) -> anyhow::Result<()> {
         return Ok(());
     }
     // locker
+    //gaming??
+
+    const TWITTER_WORDS: [&str; 3] = ["oomfie", "uwu", "owo"];
+    if TWITTER_WORDS
+        .iter()
+        .any(|i| new_message.content.to_lowercase().contains(i))
+    {
+        // time to fucking roll the dice
+        if rand::thread_rng().gen_range(0..=50) == 0 {
+            // die
+            #[cfg(not(debug_assertions))]
+            let emoji = EmojiId::new(1037514053616160918);
+            #[cfg(debug_assertions)]
+            let emoji = EmojiId::new(1175200403722350655);
+            new_message
+                .react(
+                    &ctx,
+                    ReactionType::Custom {
+                        animated: false,
+                        id: emoji,
+                        name: Some("yeshoney".to_string()),
+                    },
+                )
+                .await?;
+        }
+    }
 
     /*let locker_entries = try_get_lockers_from_msg(&new_message);
     if !locker_entries.is_empty() {

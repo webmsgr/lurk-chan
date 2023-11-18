@@ -21,6 +21,9 @@ FROM alpine:latest AS runtime
 RUN adduser --disabled-password --home /home/container container
 USER container
 ENV  USER=container HOME=/home/container
+ENV RUST_BACKTRACE=1
+ENV RUST_LOG=info
+ENV ENTRYPOINT=lurk_chan
 WORKDIR /home/container
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/lurk_chan /bin/lurk_chan
 COPY docker_entrypoint.sh /docker_entrypoint.sh

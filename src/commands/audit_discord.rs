@@ -57,12 +57,14 @@ pub mod message {
 pub mod slash {
     use super::*;
     pub fn register() -> (CreateCommand, &'static str) {
-        (CreateCommand::new("discord")
-            .description("Create a new audit log entry for a discord user")
-            .add_option(
-                CreateCommandOption::new(CommandOptionType::User, "user", "User to audit")
-                    .required(true),
-            )
-        , "discord")
+        (
+            CreateCommand::new("discord")
+                .description("Create a new audit log entry for a discord user")
+                .add_option(
+                    CreateCommandOption::new(CommandOptionType::User, "user", "User to audit")
+                        .required(true),
+                ),
+            "discord",
+        )
     }
 }

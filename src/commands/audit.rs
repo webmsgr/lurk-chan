@@ -37,35 +37,38 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
 }
 
 pub fn register() -> (CreateCommand, &'static str) {
-    (CreateCommand::new("audit")
-        .description("Create a new audit log entry")
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "location",
-                "Where is the audit location",
+    (
+        CreateCommand::new("audit")
+            .description("Create a new audit log entry")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "location",
+                    "Where is the audit location",
+                )
+                .add_string_choice("Discord", "Discord")
+                .add_string_choice("SL", "SL"),
             )
-            .add_string_choice("Discord", "Discord")
-            .add_string_choice("SL", "SL"),
-        )
-        .add_option(CreateCommandOption::new(
-            CommandOptionType::String,
-            "id",
-            "ID of the audited user",
-        ))
-        .add_option(CreateCommandOption::new(
-            CommandOptionType::String,
-            "name",
-            "Name of the audited user",
-        ))
-        .add_option(CreateCommandOption::new(
-            CommandOptionType::String,
-            "offense",
-            "Offense of the audited user",
-        ))
-        .add_option(CreateCommandOption::new(
-            CommandOptionType::String,
-            "punishment",
-            "Punishment of the audited user",
-        )), "audit")
+            .add_option(CreateCommandOption::new(
+                CommandOptionType::String,
+                "id",
+                "ID of the audited user",
+            ))
+            .add_option(CreateCommandOption::new(
+                CommandOptionType::String,
+                "name",
+                "Name of the audited user",
+            ))
+            .add_option(CreateCommandOption::new(
+                CommandOptionType::String,
+                "offense",
+                "Offense of the audited user",
+            ))
+            .add_option(CreateCommandOption::new(
+                CommandOptionType::String,
+                "punishment",
+                "Punishment of the audited user",
+            )),
+        "audit",
+    )
 }
