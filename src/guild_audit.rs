@@ -39,10 +39,8 @@ pub async fn on_guild_audit(
                                 target_id: user_for.id.to_string(),
                                 target_username: user_for.global_name.unwrap_or(user_for.name),
                                 offense: entry
-                                    .reason
-                                    .as_ref()
-                                    .map(|x| x.as_str())
-                                    .unwrap_or_else(|| "???")
+                                    .reason.as_deref()
+                                    .unwrap_or("???")
                                     .to_string(),
                                 action: format!("Timeout until <t:{}:f>", new.unix_timestamp()),
                                 server: Location::Discord,
