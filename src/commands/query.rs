@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::audit::Location;
-use crate::report::ReportStatus;
+use crate::report::{ReportStatus, Report};
 use crate::LurkChan;
 use futures::{StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
@@ -160,16 +160,22 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> anyhow::Res
                 } else {
                     "No report message".to_string()
                 };
+                let status = Report {
+                    report_status: i.get::<ReportStatus, usize>(5),
+                    claimant: i.get(8),
+                    audit: i.get(9),
+                    ..Default::default()
+                };
                 let _ = writeln!(
                     o,
-                    "* {}: {} (`{}`) reported {} (`{}`) for '{}' ({:?}) ({})",
+                    "* {}: {} (`{}`) reported {} (`{}`) for '{}' ({}) ({})",
                     i.get::<i32, usize>(10),
                     i.get::<String, usize>(1),
                     i.get::<String, usize>(0),
                     i.get::<String, usize>(3),
                     i.get::<String, usize>(2),
                     i.get::<String, usize>(4),
-                    i.get::<ReportStatus, usize>(5),
+                    status.report_status_string(),
                     link
                 );
                 o
