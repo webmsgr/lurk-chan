@@ -10,11 +10,11 @@ use serenity::prelude::*;
 use std::sync::Arc;
 use tracing::{debug, info, instrument};
 
-#[instrument(skip(ctx, entry, guild_id))]
+#[instrument(skip(ctx, entry))]
 pub async fn on_guild_audit(
     ctx: Context,
     entry: AuditLogEntry,
-    guild_id: GuildId,
+    _: GuildId,
 ) -> anyhow::Result<()> {
     let lc = {
         let data = ctx.data.read().await;
