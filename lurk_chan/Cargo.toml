@@ -10,3 +10,5 @@ common = { path = "../common" }
 database = { path = "../database" }
 poise = { git = "https://github.com/serenity-rs/poise.git", branch = "serenity-next", version = "0.5.5" }
 tokio = { version = "1.34.0", features = ["full"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["tracing-log"] }

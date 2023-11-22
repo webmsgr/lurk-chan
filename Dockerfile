@@ -14,6 +14,7 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --target x86_64-unknown-linux-musl --recipe-path recipe.json --bin lurk_chan
 # Build application
 COPY . .
+ARG SQLX_OFFLINE true
 RUN cargo build --target x86_64-unknown-linux-musl --release --bin lurk_chan
 
 # We do not need the Rust toolchain to run the binary!
