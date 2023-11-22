@@ -10,3 +10,4 @@ lurk-chan.db-wal
 backups
 .git
 target
+config.toml
