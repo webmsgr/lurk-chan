@@ -1,11 +1,9 @@
 [main]
 # this should be the discord token of the bot
-discord_token = "1234"
+token = "1234"
 
 
 [secret_lab]
-# change me to the id of the sl reports channel
-reports = 1234
 # change me to the id of the sl audits channel
 audit = 5678
 
@@ -13,3 +11,4 @@ audit = 5678
 # change me to the id of the discord audits channel
 audit = 1234
 # change me to the id of the stats channel
+stats = 5678

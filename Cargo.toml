@@ -1,5 +1,5 @@
 [workspace]
-members = ["lurk_chan"]
+members = ["lurk_chan", "common", "database"]
 resolver = "2"
 
 [workspace.package]
