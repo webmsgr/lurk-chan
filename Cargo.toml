@@ -1,3 +1,6 @@
 [workspace]
 members = ["lurk_chan"]
 resolver = "2"
+
+[workspace.package]
+rust-version = "1.74.0"
