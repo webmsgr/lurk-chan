@@ -1,8 +1,11 @@
 use std::str::FromStr;
 
-use common::{Report, ReportStatus, Action, Location};
-use sqlx::{SqlitePool, sqlite::{SqlitePoolOptions, SqliteConnectOptions}, migrate};
-
+use common::{Action, Location, Report, ReportStatus};
+use sqlx::{
+    migrate,
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    SqlitePool,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -21,7 +24,7 @@ pub enum Error {
 }
 
 pub struct Database {
-    pool: SqlitePool
+    pool: SqlitePool,
 }
 
 impl Database {
@@ -29,12 +32,9 @@ impl Database {
         let options = SqliteConnectOptions::new()
             .create_if_missing(true)
             .filename("lurk_chan.db");
-        let pool = SqlitePoolOptions::new()
-            .connect_with(options).await?;
+        let pool = SqlitePoolOptions::new().connect_with(options).await?;
         migrate!().run(&pool).await?;
-        let db = Self {
-            pool
-        };
+        let db = Self { pool };
         db.vacuum().await?;
         Ok(db)
     }
@@ -44,16 +44,18 @@ impl Database {
     }
     pub async fn get_report_from_id(&self, report_id: u32) -> Result<Option<Report>, Error> {
         let report_id = report_id as i64;
-        let res: Option<DBReport> = sqlx::query_as!(DBReport, "select * from Reports where id = ?", report_id)
-            .fetch_optional(&self.pool).await?;
+        let res: Option<DBReport> =
+            sqlx::query_as!(DBReport, "select * from Reports where id = ?", report_id)
+                .fetch_optional(&self.pool)
+                .await?;
         match res {
             Some(i) => Ok(Some(i.into_report()?)),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
     pub async fn add_report(&self, report: Report) -> Result<u32, Error> {
         let r = DBReport::from_report(report);
-        let res = 
+        let res =
             sqlx::query!(
                 "insert into Reports(reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status, server, time, claimant, location) values (?,?,?,?,?,?,?,?,?,?)", 
                 r.reporter_id,
@@ -69,86 +71,128 @@ impl Database {
             ).execute(&self.pool).await?;
         Ok(res.last_insert_rowid() as u32)
     }
-    pub async fn get_action_from_id(&self, id: u32)  -> Result<Option<Action>, Error>   {
+    pub async fn get_action_from_id(&self, id: u32) -> Result<Option<Action>, Error> {
         let action_id = id as i64;
-        let res: Option<DBAction> = sqlx::query_as!(DBAction, "select * from Actions where id = ?", action_id)
-            .fetch_optional(&self.pool).await?;
+        let res: Option<DBAction> =
+            sqlx::query_as!(DBAction, "select * from Actions where id = ?", action_id)
+                .fetch_optional(&self.pool)
+                .await?;
         match res {
             Some(i) => Ok(Some(i.try_into()?)),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
-    pub async fn add_report_message(&self, channel_id: u64, message_id: u64, report_id: u32) -> Result<(), Error> {
-        let (a, b, c) = (report_id as i64,
-                channel_id.to_string(),
-                message_id.to_string());
+    pub async fn add_report_message(
+        &self,
+        channel_id: u64,
+        message_id: u64,
+        report_id: u32,
+    ) -> Result<(), Error> {
+        let (a, b, c) = (
+            report_id as i64,
+            channel_id.to_string(),
+            message_id.to_string(),
+        );
         sqlx::query!(
-            "insert into ReportMessages(report_id, channel, message) values (?,?,?)", 
+            "insert into ReportMessages(report_id, channel, message) values (?,?,?)",
             a,
             b,
             c
-        ).execute(&self.pool).await?;
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
-    pub async fn add_action_message(&self, channel_id: u64, message_id: u64, action_id: u32) -> Result<(), Error> {
-        let (a, b, c) = (action_id as i64,
-                channel_id.to_string(),
-                message_id.to_string());
+    pub async fn add_action_message(
+        &self,
+        channel_id: u64,
+        message_id: u64,
+        action_id: u32,
+    ) -> Result<(), Error> {
+        let (a, b, c) = (
+            action_id as i64,
+            channel_id.to_string(),
+            message_id.to_string(),
+        );
         sqlx::query!(
-            "insert into ActionMessages(action_id, channel, message) values (?,?,?)", 
+            "insert into ActionMessages(action_id, channel, message) values (?,?,?)",
             a,
             b,
             c
-        ).execute(&self.pool).await?;
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
     pub async fn get_report_message(&self, id: u32) -> Result<Option<(u64, u64)>, Error> {
         let id = id as i64;
-        let res: Option<(String, String)> = sqlx::query!("select channel, message from ReportMessages where report_id = ?", id)
-            .fetch_optional(&self.pool).await.map(|i| i.map(|i| (i.channel, i.message)))?;
+        let res: Option<(String, String)> = sqlx::query!(
+            "select channel, message from ReportMessages where report_id = ?",
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map(|i| i.map(|i| (i.channel, i.message)))?;
         match res {
             Some((a, b)) => Ok(Some((a.parse()?, b.parse()?))),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
     pub async fn get_action_message(&self, id: u32) -> Result<Option<(u64, u64)>, Error> {
         let id = id as i64;
-        let res: Option<(String, String)> = sqlx::query!("select channel, message from ActionMessages where action_id = ?", id)
-            .fetch_optional(&self.pool).await.map(|i| i.map(|i| (i.channel, i.message)))?;
+        let res: Option<(String, String)> = sqlx::query!(
+            "select channel, message from ActionMessages where action_id = ?",
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map(|i| i.map(|i| (i.channel, i.message)))?;
         match res {
             Some((a, b)) => Ok(Some((a.parse()?, b.parse()?))),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
-    pub async fn get_action_message_from_report_id(&self, id: u32) -> Result<Option<(u64, u64)>, Error> {
+    pub async fn get_action_message_from_report_id(
+        &self,
+        id: u32,
+    ) -> Result<Option<(u64, u64)>, Error> {
         let id = id as i64;
         let res: Option<(String, String)> = sqlx::query!("select channel, message from ActionMessages where action_id = (select id from Actions where report = ?)", id)
             .fetch_optional(&self.pool).await.map(|i| i.map(|i| (i.channel, i.message)))?;
         match res {
             Some((a, b)) => Ok(Some((a.parse()?, b.parse()?))),
-            None => Ok(None)
+            None => Ok(None),
         }
-
     }
     pub async fn get_report_count(&self, id: &str) -> Result<u32, Error> {
-        let res: i32 = sqlx::query_scalar!("select count(*) from Reports where reported_id = ?", id)
-            .fetch_one(&self.pool).await?;
+        let res: i32 =
+            sqlx::query_scalar!("select count(*) from Reports where reported_id = ?", id)
+                .fetch_one(&self.pool)
+                .await?;
         Ok(res as u32)
     }
     pub async fn claim_report(&self, id: u32, claimant: u64) -> Result<(), Error> {
         let id = id as i64;
         let c = claimant.to_string();
-        sqlx::query!("update Reports set report_status = 'claimed', claimant = ? where id = ?", c, id)
-            .execute(&self.pool).await?;
+        sqlx::query!(
+            "update Reports set report_status = 'claimed', claimant = ? where id = ?",
+            c,
+            id
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
     pub async fn who_claimed_report(&self, id: u32) -> Result<Option<u64>, Error> {
         let id = id as i64;
-        let res: Option<String> = sqlx::query_scalar!("select claimant from Reports where id = ?", id)
-            .fetch_optional(&self.pool).await?.flatten();
+        let res: Option<String> =
+            sqlx::query_scalar!("select claimant from Reports where id = ?", id)
+                .fetch_optional(&self.pool)
+                .await?
+                .flatten();
         match res {
             Some(i) => Ok(Some(i.parse()?)),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
     pub async fn add_action(&self, action: Action) -> Result<u32, Error> {
@@ -168,12 +212,25 @@ impl Database {
     }
     pub async fn close_report(&self, id: u32) -> Result<(), Error> {
         let id = id as i64;
-        sqlx::query!("update Reports set report_status = 'closed' where id = ?", id)
-            .execute(&self.pool).await?;
+        sqlx::query!(
+            "update Reports set report_status = 'closed' where id = ?",
+            id
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
-    pub async fn edit_action(&self, id: u32, audit: Action, now: String, who: u64) -> Result<(), Error> {
-        let old = self.get_action_from_id(id).await?.ok_or_else(|| Error::ActionNotFound(id))?;
+    pub async fn edit_action(
+        &self,
+        id: u32,
+        audit: Action,
+        now: String,
+        who: u64,
+    ) -> Result<(), Error> {
+        let old = self
+            .get_action_from_id(id)
+            .await?
+            .ok_or_else(|| Error::ActionNotFound(id))?;
         let old_val = serde_json::to_value(&old).expect("should never fail");
         let new_val = serde_json::to_value(&audit).expect("should never fail");
         let diff = json_patch::diff(&old_val, &new_val);
@@ -189,13 +246,17 @@ impl Database {
                 audit.action,
                 id).execute(&self.pool).await?;
         let who_str = who.to_string();
-        sqlx::query!("insert into AuditEdits(action_id, old, new, who, time, changes) values (?,?,?,?,?,?)",
-                id,
-                old_str,
-                new_str,
-                who_str,
-                now,
-                diff_str).execute(&self.pool).await?;
+        sqlx::query!(
+            "insert into AuditEdits(action_id, old, new, who, time, changes) values (?,?,?,?,?,?)",
+            id,
+            old_str,
+            new_str,
+            who_str,
+            now,
+            diff_str
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 }
@@ -223,7 +284,7 @@ struct DBReport {
     server: String,
     time: String,
     claimant: Option<String>,
-    location: String
+    location: String,
 }
 
 impl DBReport {
@@ -234,14 +295,15 @@ impl DBReport {
             reported_id: self.reported_id,
             reported_name: self.reported_name,
             report_reason: self.report_reason,
-            report_status: ReportStatus::from_db(&self.report_status).ok_or_else(|| Error::InvalidReportStatus(self.report_status))?,
+            report_status: ReportStatus::from_db(&self.report_status)
+                .ok_or_else(|| Error::InvalidReportStatus(self.report_status))?,
             server: self.server,
             time: self.time,
             claimant: match self.claimant {
                 Some(i) => Some(i.parse()?),
-                None => None
+                None => None,
             },
-            location: Location::from_str(self.location.as_str())?
+            location: Location::from_str(self.location.as_str())?,
         })
     }
     fn from_report(r: Report) -> Self {
@@ -256,7 +318,7 @@ impl DBReport {
             server: r.server,
             time: r.time,
             claimant: r.claimant.map(|i| i.to_string()),
-            location: r.location.to_string()
+            location: r.location.to_string(),
         }
     }
 }
@@ -282,7 +344,7 @@ impl From<Action> for DBAction {
             target_username: value.target_username,
             offense: value.offense,
             action: value.action,
-            claimant: value.claimant.to_string()
+            claimant: value.claimant.to_string(),
         }
     }
 }
@@ -296,7 +358,7 @@ impl TryInto<Action> for DBAction {
             offense: self.offense,
             action: self.action,
             claimant: self.claimant.parse()?,
-            server: Location::from_str(&self.server)?
+            server: Location::from_str(&self.server)?,
         })
     }
 }

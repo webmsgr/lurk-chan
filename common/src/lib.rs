@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Unknown location: {0}")]
-    UnknownLocation(String)
+    UnknownLocation(String),
 }
 
 /// A Report.
@@ -58,7 +58,8 @@ impl ReportStatus {
             Self::Claimed => "claimed",
             Self::Closed => "closed",
             Self::Expired => "expired",
-        }.to_string()
+        }
+        .to_string()
     }
     /// convert a database string to a ReportStatus
     pub fn from_db(item: &str) -> Option<Self> {
@@ -67,12 +68,10 @@ impl ReportStatus {
             "claimed" => Some(Self::Claimed),
             "closed" => Some(Self::Closed),
             "expired" => Some(Self::Expired),
-            _ => None
+            _ => None,
         }
     }
 }
-
-
 
 /*target_id text not null,
 target_username text not null,
@@ -80,7 +79,6 @@ offense text not null,
 action text not null,
 server text not null,
 report int,*/
-
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub enum Location {
@@ -104,7 +102,7 @@ impl FromStr for Location {
         match s {
             "sl" => Ok(Self::SL),
             "discord" => Ok(Self::Discord),
-            _ => Err(Error::UnknownLocation(s.to_string()))
+            _ => Err(Error::UnknownLocation(s.to_string())),
         }
     }
 }
@@ -120,9 +118,6 @@ pub struct Action {
     pub report: Option<u32>,
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use crate::ReportStatus;
@@ -131,8 +126,14 @@ mod tests {
     fn test_report_status_from_db() {
         assert_eq!(Some(ReportStatus::Open), ReportStatus::from_db("open"));
         assert_eq!(Some(ReportStatus::Closed), ReportStatus::from_db("closed"));
-        assert_eq!(Some(ReportStatus::Expired), ReportStatus::from_db("expired"));
-        assert_eq!(Some(ReportStatus::Claimed), ReportStatus::from_db("claimed"));
+        assert_eq!(
+            Some(ReportStatus::Expired),
+            ReportStatus::from_db("expired")
+        );
+        assert_eq!(
+            Some(ReportStatus::Claimed),
+            ReportStatus::from_db("claimed")
+        );
         assert_eq!(None, ReportStatus::from_db("piss"));
     }
     #[test]
