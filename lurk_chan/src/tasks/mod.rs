@@ -1,13 +1,16 @@
 use std::{time::Duration, path::PathBuf};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
 use async_shutdown::ShutdownManager;
+use chrono::{DateTime, Utc};
 use poise::serenity_prelude::{Context, CacheHttp, Timestamp};
 use serde_json::error;
+mod console;
 use tokio::select;
-use tracing::{info, instrument, error};
+use tracing::{info, instrument, error, warn};
 mod stats;
 use stats::stats_task;
+use console::console_task;
 macro_rules! task {
     ($task:ident, $s:expr, $framework:expr, $ctx:expr) => {
         info!("starting '{}' task", stringify!($task));
@@ -38,6 +41,8 @@ pub async fn start_all_background_tasks(
     task!(optimize_db_task, s, framework, ctx);
     task!(stats_task, s, framework, ctx);
     task!(backup_task, s, framework, ctx);
+    task!(expire_task, s, framework, ctx);
+    task!(console_task, s, framework, ctx);
     //task!(backup_task, s, framework, ctx);
     info!("Background tasks started");
     Ok(())
@@ -108,5 +113,50 @@ async fn backup_task(_: impl CacheHttp, lc: LurkChan, s: ShutdownManager<&'stati
         }
         info!("DB backed up")
     }
+    Ok(())
+}
+
+pub async fn expire_task(
+    ctx: impl CacheHttp,
+    lc: LurkChan,
+    shut: ShutdownManager<&'static str>,
+) -> anyhow::Result<()> {
+    use poise::futures_util::TryStreamExt;
+    let mut interval = tokio::time::interval(Duration::from_secs(60 * 5));
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        select! {
+            _ = interval.tick() => {  },
+            _ = shut.wait_shutdown_triggered() => {
+                break;
+            }
+        }
+        let mut q = lc.db.all_reports_with_status(common::ReportStatus::Open).await?;
+        let now = chrono::Utc::now();
+        let mut to_close = vec![];
+        for (id, t) in q {
+            let time: DateTime<Utc> = t.time.parse().context("failed to parse time!")?;
+
+            let sins = now.signed_duration_since(time);
+            if sins.num_hours() > 48 {
+                to_close.push(id)
+            }
+        }
+        if to_close.is_empty() {
+            continue;
+        }
+        info!("Expiring {} reports", to_close.len());
+        for report in to_close {
+            if let Err(e) = lc.db.expire_report(report).await {
+                warn!("Failed to close report #{}: {}", report, e);
+                continue;
+            }
+            if let Err(e) = lurk_chan::update_report_message(&ctx, report, &lc.db).await {
+                warn!("Failed to update report message #{}: {}", report, e);
+            }
+        }
+        info!("expire complete");
+    }
+
     Ok(())
 }

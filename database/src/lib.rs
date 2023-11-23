@@ -203,6 +203,22 @@ impl Database {
         .map(|i| (i.claimant, i.count));
         Ok(res.map(|(a, b)| (a.expect("claimant is not null").parse().unwrap(), b as u32)).collect())
     }
+    pub async fn all_reports_with_status(&self, status: ReportStatus) -> Result<Vec<(u32, Report)>, Error> {
+        let s = status.to_db();
+        let res = sqlx::query_as!(
+            DBReport,
+            "select * from Reports where report_status = ?",
+            s
+        ).fetch_all(&self.pool).await?;
+        Ok(res.into_iter().map(|i| (i.id.unwrap() as u32, i.into_report().unwrap())).collect())
+    }
+pub async fn expire_report(&self, rid: u32) -> Result<(), Error> {
+        let rid = rid as i64;
+        sqlx::query!("update Reports set report_status = 'expired' where id = ?", rid)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
     pub async fn leaderboard_audit(&self, limit: u32) -> Result<Vec<(u64, u32)>, Error> {
         let res = sqlx::query!(
             "select claimant, count(*) as count from Actions where claimant is not null group by claimant order by count desc limit ?",
