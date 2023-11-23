@@ -1,11 +1,11 @@
 use common::{Report, ReportStatus, Location, Action};
 use database::Database;
-use poise::serenity_prelude::{CreateEmbed, CreateActionRow, ButtonStyle, CreateButton, Color, CreateEmbedAuthor, Timestamp, MessageId, ChannelId, CreateEmbedFooter, CacheHttp, EditMessage, UserId, Context};
+use poise::serenity_prelude::{CreateEmbed, CreateActionRow, ButtonStyle, CreateButton, Color, CreateEmbedAuthor, Timestamp, MessageId, ChannelId, CreateEmbedFooter, CacheHttp, EditMessage, UserId};
 use serde::{Serialize, de::DeserializeOwned};
 /// stupid idiot function to convert serializable to serializable. 
 /// Useful for hashmap -> object conversions (how its used in LC)
 pub fn transmute_json<I: Serialize, D: DeserializeOwned>(from: I) -> Result<D, serde_json::Error> {
-    Ok(serde_json::to_value(from).and_then(serde_json::from_value::<D>)?)
+    serde_json::to_value(from).and_then(serde_json::from_value::<D>)
 }
 
 
@@ -81,7 +81,7 @@ pub async fn create_report_embed(r: &Report, rid: u32, db: &Database) -> anyhow:
         )
 }
 
-pub async fn create_report_action_row(r: &Report, id: u32, db: &Database) -> anyhow::Result<Vec<CreateActionRow>> {
+pub async fn create_report_action_row(r: &Report, id: u32, _db: &Database) -> anyhow::Result<Vec<CreateActionRow>> {
     let i: Option<CreateActionRow> = match r.report_status {
         ReportStatus::Open => Some(CreateActionRow::Buttons(vec![CreateButton::new(format!(
             "claim_{}",

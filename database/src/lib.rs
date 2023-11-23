@@ -36,7 +36,7 @@ impl Database {
             pool
         };
         db.vacuum().await?;
-        return Ok(db)
+        Ok(db)
     }
     pub async fn vacuum(&self) -> Result<(), Error> {
         sqlx::query("vacuum;").execute(&self.pool).await?;
