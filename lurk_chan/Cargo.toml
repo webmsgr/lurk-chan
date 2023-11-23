@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.75", features = ["backtrace"] }
+async-shutdown = "0.2.1"
 common = { path = "../common" }
 database = { path = "../database" }
 poise = { git = "https://github.com/serenity-rs/poise.git", branch = "serenity-next", version = "0.5.5" }

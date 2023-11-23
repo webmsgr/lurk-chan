@@ -10,3 +10,5 @@ common = { path = "../common" }
 sqlx = { version = "0.7.2", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
 thiserror = "1.0.50"
 tracing = "0.1.40"
+serde_json = "1.0.108"
+json-patch = "1.2.0"

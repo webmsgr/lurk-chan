@@ -15,7 +15,9 @@ pub enum Error {
     #[error("Failed to parse number: {0}")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("{0}")]
-    CommonError(#[from] common::Error)
+    CommonError(#[from] common::Error),
+    #[error("Action not found: {0}")]
+    ActionNotFound(u32),
 }
 
 pub struct Database {
@@ -30,9 +32,11 @@ impl Database {
         let pool = SqlitePoolOptions::new()
             .connect_with(options).await?;
         migrate!().run(&pool).await?;
-        return Ok(Self {
+        let db = Self {
             pool
-        })
+        };
+        db.vacuum().await?;
+        return Ok(db)
     }
     pub async fn vacuum(&self) -> Result<(), Error> {
         sqlx::query("vacuum;").execute(&self.pool).await?;
@@ -51,7 +55,7 @@ impl Database {
         let r = DBReport::from_report(report);
         let res = 
             sqlx::query!(
-                "insert into Reports(reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status, server, time, claimant, audit) values (?,?,?,?,?,?,?,?,?,?)", 
+                "insert into Reports(reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status, server, time, claimant, location) values (?,?,?,?,?,?,?,?,?,?)", 
                 r.reporter_id,
                 r.reporter_name,
                 r.reported_id,
@@ -61,7 +65,7 @@ impl Database {
                 r.server,
                 r.time,
                 r.claimant,
-                r.audit
+                r.location
             ).execute(&self.pool).await?;
         Ok(res.last_insert_rowid() as u32)
     }
@@ -73,6 +77,126 @@ impl Database {
             Some(i) => Ok(Some(i.try_into()?)),
             None => Ok(None)
         }
+    }
+    pub async fn add_report_message(&self, channel_id: u64, message_id: u64, report_id: u32) -> Result<(), Error> {
+        let (a, b, c) = (report_id as i64,
+                channel_id.to_string(),
+                message_id.to_string());
+        sqlx::query!(
+            "insert into ReportMessages(report_id, channel, message) values (?,?,?)", 
+            a,
+            b,
+            c
+        ).execute(&self.pool).await?;
+        Ok(())
+    }
+    pub async fn add_action_message(&self, channel_id: u64, message_id: u64, action_id: u32) -> Result<(), Error> {
+        let (a, b, c) = (action_id as i64,
+                channel_id.to_string(),
+                message_id.to_string());
+        sqlx::query!(
+            "insert into ActionMessages(action_id, channel, message) values (?,?,?)", 
+            a,
+            b,
+            c
+        ).execute(&self.pool).await?;
+        Ok(())
+    }
+    pub async fn get_report_message(&self, id: u32) -> Result<Option<(u64, u64)>, Error> {
+        let id = id as i64;
+        let res: Option<(String, String)> = sqlx::query!("select channel, message from ReportMessages where report_id = ?", id)
+            .fetch_optional(&self.pool).await.map(|i| i.map(|i| (i.channel, i.message)))?;
+        match res {
+            Some((a, b)) => Ok(Some((a.parse()?, b.parse()?))),
+            None => Ok(None)
+        }
+    }
+    pub async fn get_action_message(&self, id: u32) -> Result<Option<(u64, u64)>, Error> {
+        let id = id as i64;
+        let res: Option<(String, String)> = sqlx::query!("select channel, message from ActionMessages where action_id = ?", id)
+            .fetch_optional(&self.pool).await.map(|i| i.map(|i| (i.channel, i.message)))?;
+        match res {
+            Some((a, b)) => Ok(Some((a.parse()?, b.parse()?))),
+            None => Ok(None)
+        }
+    }
+    pub async fn get_action_message_from_report_id(&self, id: u32) -> Result<Option<(u64, u64)>, Error> {
+        let id = id as i64;
+        let res: Option<(String, String)> = sqlx::query!("select channel, message from ActionMessages where action_id = (select id from Actions where report = ?)", id)
+            .fetch_optional(&self.pool).await.map(|i| i.map(|i| (i.channel, i.message)))?;
+        match res {
+            Some((a, b)) => Ok(Some((a.parse()?, b.parse()?))),
+            None => Ok(None)
+        }
+
+    }
+    pub async fn get_report_count(&self, id: &str) -> Result<u32, Error> {
+        let res: i32 = sqlx::query_scalar!("select count(*) from Reports where reported_id = ?", id)
+            .fetch_one(&self.pool).await?;
+        Ok(res as u32)
+    }
+    pub async fn claim_report(&self, id: u32, claimant: u64) -> Result<(), Error> {
+        let id = id as i64;
+        let c = claimant.to_string();
+        sqlx::query!("update Reports set report_status = 'claimed', claimant = ? where id = ?", c, id)
+            .execute(&self.pool).await?;
+        Ok(())
+    }
+    pub async fn who_claimed_report(&self, id: u32) -> Result<Option<u64>, Error> {
+        let id = id as i64;
+        let res: Option<String> = sqlx::query_scalar!("select claimant from Reports where id = ?", id)
+            .fetch_optional(&self.pool).await?.flatten();
+        match res {
+            Some(i) => Ok(Some(i.parse()?)),
+            None => Ok(None)
+        }
+    }
+    pub async fn add_action(&self, action: Action) -> Result<u32, Error> {
+        let a = DBAction::from(action);
+        let res = 
+            sqlx::query!(
+                "insert into Actions(target_id, target_username, offense, action, server, claimant, report) values (?,?,?,?,?,?,?)", 
+                a.target_id,
+                a.target_username,
+                a.offense,
+                a.action,
+                a.server,
+                a.claimant,
+                a.report
+            ).execute(&self.pool).await?;
+        Ok(res.last_insert_rowid() as u32)
+    }
+    pub async fn close_report(&self, id: u32) -> Result<(), Error> {
+        let id = id as i64;
+        sqlx::query!("update Reports set report_status = 'closed' where id = ?", id)
+            .execute(&self.pool).await?;
+        Ok(())
+    }
+    pub async fn edit_action(&self, id: u32, audit: Action, now: String, who: u64) -> Result<(), Error> {
+        let old = self.get_action_from_id(id).await?.ok_or_else(|| Error::ActionNotFound(id))?;
+        let old_val = serde_json::to_value(&old).expect("should never fail");
+        let new_val = serde_json::to_value(&audit).expect("should never fail");
+        let diff = json_patch::diff(&old_val, &new_val);
+
+        let id = id as i64;
+        let old_str = serde_json::to_string(&old).expect("should never fail");
+        let new_str = serde_json::to_string(&audit).expect("should never fail");
+        let diff_str = serde_json::to_string(&diff).expect("should never fail");
+        sqlx::query!("update Actions set target_id = ?, target_username = ?, offense = ?, action = ? where id = ?", 
+                audit.target_id,
+                audit.target_username,
+                audit.offense,
+                audit.action,
+                id).execute(&self.pool).await?;
+        let who_str = who.to_string();
+        sqlx::query!("insert into AuditEdits(action_id, old, new, who, time, changes) values (?,?,?,?,?,?)",
+                id,
+                old_str,
+                new_str,
+                who_str,
+                now,
+                diff_str).execute(&self.pool).await?;
+        Ok(())
     }
 }
 
@@ -99,7 +223,7 @@ struct DBReport {
     server: String,
     time: String,
     claimant: Option<String>,
-    audit: Option<String>
+    location: String
 }
 
 impl DBReport {
@@ -117,10 +241,7 @@ impl DBReport {
                 Some(i) => Some(i.parse()?),
                 None => None
             },
-            audit: match self.audit {
-                Some(i) => Some(i.parse()?),
-                None => None
-            }
+            location: Location::from_str(self.location.as_str())?
         })
     }
     fn from_report(r: Report) -> Self {
@@ -135,7 +256,7 @@ impl DBReport {
             server: r.server,
             time: r.time,
             claimant: r.claimant.map(|i| i.to_string()),
-            audit: r.audit.map(|i| i.to_string())
+            location: r.location.to_string()
         }
     }
 }

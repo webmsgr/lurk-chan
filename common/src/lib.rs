@@ -37,11 +37,8 @@ pub struct Report {
     /// Who claimed it?
     #[serde(default)]
     pub claimant: Option<u64>,
-    /// To be removed soon, the audit log message for this report. To be replaced with a cool double join! (maybe)
-    /// it may also be replaced with a fkey to audits.
-    #[deprecated = "to be replaced with a fkey to audits table"]
     #[serde(default)]
-    pub audit: Option<u64>,
+    pub location: Location,
 }
 /// Various status of reports.
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
