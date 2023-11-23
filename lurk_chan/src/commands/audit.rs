@@ -78,9 +78,9 @@ async fn do_it(
                 claimant: ctx.author().id.get(),
                 report: None,
             };
-            let channel_for_msg = match &a.server {
-                &Location::SL => ctx.data().config.secret_lab.audit,
-                &Location::Discord => ctx.data().config.discord.audit,
+            let channel_for_msg = match a.server {
+                Location::SL => ctx.data().config.secret_lab.audit,
+                Location::Discord => ctx.data().config.discord.audit,
             };
             let aid = ctx.data().db.add_action(a.clone()).await?;
             let m = channel_for_msg

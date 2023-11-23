@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select count(*) from Actions where server = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "count(*)",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9fa2a30d832eea3061114769ed4dfc452a770eb0f01b40c4f9bd8ef4643f5b74"
+}

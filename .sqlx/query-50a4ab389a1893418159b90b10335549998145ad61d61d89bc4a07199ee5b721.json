@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select count(*) from Reports where report_status = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "count(*)",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "50a4ab389a1893418159b90b10335549998145ad61d61d89bc4a07199ee5b721"
+}

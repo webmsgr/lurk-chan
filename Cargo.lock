@@ -209,7 +209,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -356,13 +356,14 @@ checksum = "7e962a19be5cfc3f3bf6dd8f61eb50107f356ad6270fbb3ed41476571db78be5"
 
 [[package]]
 name = "database"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "common",
  "json-patch",
  "serde_json",
  "sqlx",
  "thiserror",
+ "tokio",
  "tracing",
 ]
 
@@ -959,6 +960,7 @@ version = "2.0.0"
 dependencies = [
  "anyhow",
  "async-shutdown",
+ "chrono",
  "common",
  "database",
  "poise",

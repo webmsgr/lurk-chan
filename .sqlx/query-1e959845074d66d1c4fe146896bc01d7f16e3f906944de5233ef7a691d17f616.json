@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "select * from Actions where claimant = ? order by id desc limit ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "target_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_username",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "offense",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "action",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "server",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "claimant",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "report",
+        "ordinal": 7,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "1e959845074d66d1c4fe146896bc01d7f16e3f906944de5233ef7a691d17f616"
+}

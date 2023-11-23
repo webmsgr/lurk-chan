@@ -26,21 +26,21 @@ mod tasks;
 use database::Database;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Config {
     main: MainConfig,
     secret_lab: SLConfig,
     discord: DiscordConfig,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct MainConfig {
     token: String,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct SLConfig {
     audit: ChannelId,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct DiscordConfig {
     audit: ChannelId,
     stats: ChannelId,
@@ -57,7 +57,7 @@ fn load_or_create_config() -> anyhow::Result<Config> {
     let config_file =
         String::from_utf8(std::fs::read(config_path).context("failed to read config file")?)
             .context("config file is not utf8!")?;
-    Ok(toml::from_str(&config_file).context("Failed to parse config file")?)
+    toml::from_str(&config_file).context("Failed to parse config file")
 }
 
 #[tokio::main]
@@ -112,6 +112,7 @@ async fn handle(
                 "for new reports! (v{})",
                 env!("CARGO_PKG_VERSION")
             ))));
+            tasks::start_all_background_tasks(ctx.clone(), framework.user_data.shutdown.clone(), framework).await?;
         }
         FullEvent::Message { ctx, new_message } => {
             on_message(ctx, new_message, framework.user_data).await?;
@@ -232,9 +233,9 @@ pub async fn on_button(
                     claimant: uid,
                 };
 
-                let channel_for_msg = match &a.server {
-                    &Location::SL => lc.config.secret_lab.audit,
-                    &Location::Discord => lc.config.discord.audit,
+                let channel_for_msg = match a.server {
+                    Location::SL => lc.config.secret_lab.audit,
+                    Location::Discord => lc.config.discord.audit,
                 };
                 lc.db.close_report(id).await?;
                 let aid = lc.db.add_action(a.clone()).await?;
@@ -374,7 +375,7 @@ async fn on_message(
     new_message: &serenity_prelude::Message,
     lc: &LurkChan,
 ) -> anyhow::Result<()> {
-    if let Some(report) = report_from_msg(&new_message)? {
+    if let Some(report) = report_from_msg(new_message)? {
         // holy shit this is a report!
         // add that shit to the db
         let id = lc.db.add_report(report.clone()).await?;
@@ -395,13 +396,23 @@ async fn on_message(
 
 pub struct LurkChan {
     pub config: Config,
-    pub db: Database,
+    pub db: Arc<Database>,
     pub shutdown: ShutdownManager<&'static str>,
+}
+
+impl Clone for LurkChan {
+    fn clone(&self) -> Self {
+        Self {
+            config: self.config.clone(),
+            db: Arc::clone(&self.db),
+            shutdown: self.shutdown.clone()
+        }
+    }
 }
 
 async fn bot(config: Config, db: Database, s: ShutdownManager<&'static str>) -> anyhow::Result<()> {
     let framework_shutdown = s.clone();
-    let background_shutdown = s.clone();
+    //let background_shutdown = s.clone();
     use poise::serenity_prelude::GatewayIntents;
     let client = Client::builder(
         &config.main.token,
@@ -425,7 +436,6 @@ async fn bot(config: Config, db: Database, s: ShutdownManager<&'static str>) -> 
         },
         |ctx, _ready, framework: &Framework<LurkChan, anyhow::Error>| {
             Box::pin(async move {
-                tasks::start_all_background_tasks(ctx.clone(), background_shutdown).await?;
                 #[cfg(debug_assertions)]
                 poise::builtins::register_in_guild(
                     ctx,
@@ -440,11 +450,12 @@ async fn bot(config: Config, db: Database, s: ShutdownManager<&'static str>) -> 
                 poise::builtins::register_globally(ctx, &framework.options().commands)
                     .await
                     .context("failed to register commands")?;
-                Ok(LurkChan {
+                let lc = LurkChan {
                     config,
-                    db,
+                    db: Arc::new(db),
                     shutdown: framework_shutdown,
-                })
+                };
+                Ok(lc)
             })
         },
     ))

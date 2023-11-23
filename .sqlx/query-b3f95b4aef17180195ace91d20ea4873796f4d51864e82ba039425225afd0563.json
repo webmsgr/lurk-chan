@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "select * from Reports where reported_id = ? order by time desc limit ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "reporter_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "reporter_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "reported_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "reported_name",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "report_reason",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "report_status",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "server",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "time",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "claimant",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "location",
+        "ordinal": 10,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "b3f95b4aef17180195ace91d20ea4873796f4d51864e82ba039425225afd0563"
+}

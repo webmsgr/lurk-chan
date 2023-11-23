@@ -1,10 +1,10 @@
-use std::str::FromStr;
+use std::{str::FromStr, path::PathBuf};
 
 use common::{Action, Location, Report, ReportStatus};
 use sqlx::{
     migrate,
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    SqlitePool,
+    SqlitePool, error::DatabaseError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -21,9 +21,11 @@ pub enum Error {
     CommonError(#[from] common::Error),
     #[error("Action not found: {0}")]
     ActionNotFound(u32),
+    #[error("Foreign Key Error: {0}")]
+    ForeignKeyError(String)
 }
 
-pub struct Database {
+pub struct  Database {
     pool: SqlitePool,
 }
 
@@ -40,6 +42,16 @@ impl Database {
     }
     pub async fn vacuum(&self) -> Result<(), Error> {
         sqlx::query("vacuum;").execute(&self.pool).await?;
+        Ok(())
+    }
+    pub async fn optimize(&self) -> Result<(), Error> {
+        sqlx::query("PRAGMA optimize;").execute(&self.pool).await?;
+        Ok(())
+    }
+    pub async fn backup_to(&self, huh: PathBuf) -> Result<(), Error> {
+        sqlx::query(&format!("vacuum into '{}';", huh.display()))
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
     pub async fn get_report_from_id(&self, report_id: u32) -> Result<Option<Report>, Error> {
@@ -152,6 +164,15 @@ impl Database {
             None => Ok(None),
         }
     }
+    pub async fn audit_count_from_server(&self, server: Location) -> Result<u32, Error> {
+        let s = server.to_string();
+        let res: i32 = sqlx::query_scalar!("select count(*) from Actions where server = ?", s).fetch_one(&self.pool).await?;
+        Ok(res as u32)
+    }
+    pub async fn audit_count_without_report(&self) -> Result<u32, Error> {
+        let res: i32 = sqlx::query_scalar!("select count(*) from Actions where report is null").fetch_one(&self.pool).await?;
+        Ok(res as u32)
+    }
     pub async fn get_action_message_from_report_id(
         &self,
         id: u32,
@@ -170,6 +191,28 @@ impl Database {
                 .fetch_one(&self.pool)
                 .await?;
         Ok(res as u32)
+    }
+    pub async fn leaderboard_reports(&self, limit: u32) -> Result<Vec<(u64, u32)>, Error> {
+        let res = sqlx::query!(
+            "select claimant, count(*) as count from Reports where claimant is not null group by claimant order by count desc limit ?",
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await?
+        .into_iter()
+        .map(|i| (i.claimant, i.count));
+        Ok(res.map(|(a, b)| (a.expect("claimant is not null").parse().unwrap(), b as u32)).collect())
+    }
+    pub async fn leaderboard_audit(&self, limit: u32) -> Result<Vec<(u64, u32)>, Error> {
+        let res = sqlx::query!(
+            "select claimant, count(*) as count from Actions where claimant is not null group by claimant order by count desc limit ?",
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await?
+        .into_iter()
+        .map(|i| (i.claimant, i.count));
+        Ok(res.map(|(a, b)| (a.parse().unwrap(), b as u32)).collect())
     }
     pub async fn claim_report(&self, id: u32, claimant: u64) -> Result<(), Error> {
         let id = id as i64;
@@ -259,6 +302,82 @@ impl Database {
         .await?;
         Ok(())
     }
+    pub async fn collect_user_info(&self, user: &str) -> Result<UserInfo, Error> {
+        const LIMIT: i32 = 10;
+        let (times_reported, 
+            preview_reported, 
+            times_reported_other, 
+            preview_reported_others, 
+            times_actioned,
+        preview_actioned) = tokio::try_join!(
+            sqlx::query_scalar!("select count(*) from Reports where reported_id = ?", user).fetch_one(&self.pool),
+            sqlx::query_as!(DBReport, "select * from Reports where reported_id = ? order by time desc limit ?", user, LIMIT).fetch_all(&self.pool),
+            sqlx::query_scalar!("select count(*) from Reports where reporter_id = ?", user).fetch_one(&self.pool),
+            sqlx::query_as!(DBReport, "select * from Reports where reporter_id = ? order by time desc limit ?", user, LIMIT).fetch_all(&self.pool),
+            sqlx::query_scalar!("select count(*) from Actions where claimant = ?", user).fetch_one(&self.pool),
+            sqlx::query_as!(DBAction, "select * from Actions where claimant = ? order by id desc limit ?", user, LIMIT).fetch_all(&self.pool),
+        )?;
+        Ok(
+            UserInfo { 
+                times_reported: times_reported as u32, 
+                preview_reported : preview_reported.into_iter().map(|i| (i.id.expect("database") as u32, i.into_report().unwrap())).collect(), 
+                times_reported_others: times_reported_other as u32, 
+                preview_reported_others: preview_reported_others.into_iter().map(|i| (i.id.expect("database") as u32, i.into_report().unwrap())).collect(), 
+                times_actioned: times_actioned as u32, 
+                preview_actioned: preview_actioned.into_iter().map(|i| (i.id.expect("database") as u32, i.try_into().unwrap())).collect(), 
+            }
+        )
+    }
+    pub async fn total_report_count(&self) -> Result<u32, Error> {
+        let res: i32 = sqlx::query_scalar!("select count(*) from Reports").fetch_one(&self.pool).await?;
+        Ok(res as u32)
+    }
+    pub async fn total_action_count(&self) -> Result<u32, Error> {
+        let res: i32 = sqlx::query_scalar!("select count(*) from Actions").fetch_one(&self.pool).await?;
+        Ok(res as u32)
+    }
+    pub async fn get_report_count_by_status(&self, status: ReportStatus) -> Result<u32, Error> {
+        let s = status.to_db();
+        let res: i32 = sqlx::query_scalar!("select count(*) from Reports where report_status = ?", s).fetch_one(&self.pool).await?;
+        Ok(res as u32)
+    }
+    pub async fn get_report_message_count(&self) -> Result<u32, Error> {
+        let res: i32 = sqlx::query_scalar!("select count(*) from ReportMessages").fetch_one(&self.pool).await?;
+        Ok(res as u32)
+    }
+    pub async fn get_action_message_count(&self) -> Result<u32, Error> {
+        let res: i32 = sqlx::query_scalar!("select count(*) from ActionMessages").fetch_one(&self.pool).await?;
+        Ok(res as u32)
+    }
+    pub async fn foreign_key_check(&self) -> Result<usize, Error> {
+        let s = sqlx::query!("pragma foreign_key_check;").fetch_all(&self.pool).await?;
+        Ok(s.len())
+    }
+    pub async fn integrety_check(&self) -> Result<(), Error> {
+        let s = sqlx::query!("pragma integrity_check;").fetch_all(&self.pool).await?;
+        for i in s {
+            if i.integrity_check != "ok" {
+                return Err(Error::ForeignKeyError(i.integrity_check))
+            }
+        }
+        Ok(())
+    }
+}
+
+
+pub struct UserInfo {
+    /// how many times has this user been reported in total?
+    pub times_reported: u32,
+    /// contains the last 10 reports against this user
+    pub preview_reported: Vec<(u32, Report)>,
+    /// how many times has this user reported someone else in total?
+    pub times_reported_others: u32,
+    /// contains the last 10 reports against others by this user
+    pub preview_reported_others: Vec<(u32, Report)>,
+    /// how many times has this user been actioned in total?
+    pub times_actioned: u32,
+    /// contains the last 10 actions taken against this user
+    pub preview_actioned: Vec<(u32, Action)>,
 }
 
 /*id integer primary key,
