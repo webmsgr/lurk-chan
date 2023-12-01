@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into Reports(reporter_id, reporter_name, reported_id, reported_name, report_reason, report_status, server, time, claimant, location) values (?,?,?,?,?,?,?,?,?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "b6bcfa7e1b409b6fa0560bda334faade2d04860859dae93112f262db185d3476"
+}

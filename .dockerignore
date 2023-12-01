@@ -1,0 +1,14 @@
+/target
+lurk_chan.db
+lurk-chan.db-shm
+lurk-chan.db-wal
+.env
+.idea
+*.db
+/backups
+/.git
+backups
+.git
+target
+config.toml
+.github

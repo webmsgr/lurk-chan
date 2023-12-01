@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update Actions set target_id = ?, target_username = ?, offense = ?, action = ?, server = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "afa838c96923ef6233fcb4b68ba028eb5b2009e7af7a171725849a8229d4c52a"
+}

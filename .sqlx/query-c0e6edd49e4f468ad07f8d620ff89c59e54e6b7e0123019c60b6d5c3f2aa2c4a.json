@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update Reports set report_status = 'closed' where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "c0e6edd49e4f468ad07f8d620ff89c59e54e6b7e0123019c60b6d5c3f2aa2c4a"
+}

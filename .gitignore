@@ -1,0 +1,6 @@
+/target
+lurk_chan.*
+.env
+*.db
+backups
+config.toml

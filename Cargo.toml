@@ -1,0 +1,10 @@
+[workspace]
+members = ["lurk_chan", "common", "database"]
+resolver = "2"
+
+[workspace.package]
+rust-version = "1.74.0"
+
+
+#[patch.'https://github.com/serenity-rs/serenity']
+#serenity = { version = '0.12.0-rc2' }

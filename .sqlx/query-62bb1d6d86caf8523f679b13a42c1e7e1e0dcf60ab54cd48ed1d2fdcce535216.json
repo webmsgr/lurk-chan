@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into AuditEdits(action_id, old, new, who, time, changes) values (?,?,?,?,?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "62bb1d6d86caf8523f679b13a42c1e7e1e0dcf60ab54cd48ed1d2fdcce535216"
+}

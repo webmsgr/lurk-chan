@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into Actions(target_id, target_username, offense, action, server, claimant, report) values (?,?,?,?,?,?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "9e3a3e2e605332a0903a76ae478367db0dec2a0d0e78eba7b53955c12661a816"
+}

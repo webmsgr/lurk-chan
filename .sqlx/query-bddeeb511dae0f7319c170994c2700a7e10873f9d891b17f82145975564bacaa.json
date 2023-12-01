@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "select * from Reports where id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "reporter_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "reporter_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "reported_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "reported_name",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "report_reason",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "report_status",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "server",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "time",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "claimant",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "location",
+        "ordinal": 10,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "bddeeb511dae0f7319c170994c2700a7e10873f9d891b17f82145975564bacaa"
+}

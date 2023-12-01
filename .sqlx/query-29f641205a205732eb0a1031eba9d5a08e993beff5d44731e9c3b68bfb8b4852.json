@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select claimant from Reports where id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "claimant",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "29f641205a205732eb0a1031eba9d5a08e993beff5d44731e9c3b68bfb8b4852"
+}
