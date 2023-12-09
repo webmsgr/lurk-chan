@@ -41,8 +41,9 @@ First you need to create a new discord bot. This is done through the [discord de
 
 Use the url to add the bot to the server you receive report webhooks from.
 
+> [!WARNING]
+> All commands and buttons are open to the public by default, if you are adding Lurk-chan to a publicly facing server, you MUST restrict the channels reports arrive in to be readable ONLY by staff, and configure the integration to ONLY allow staff to run the bot's commands.
 
-***WARNING: All commands and buttons are open to the public by default, if you are adding Lurk-chan to a publicly facing server, you MUST restrict the channels reports arrive in to be readable ONLY by staff, and configure the integration to ONLY allow staff to run the bot's commands.***
 
 ### Installation
 
