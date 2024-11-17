@@ -14,6 +14,7 @@ use poise::serenity_prelude::{
     AuditLogEntry, CacheHttp, Change, Context, MemberAction, Timestamp, UserId,
 };
 use poise::{serenity_prelude, FrameworkContext};
+use serenity::all::{CreateEmbed, CreateEmbedFooter};
 use serenity::model::guild::audit_log::Action as AuditAction;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -140,13 +141,6 @@ pub async fn on_guild_audit(
     Ok(())
 }
 
-struct WhatTheFuck<'a>(&'a serenity_prelude::Context);
-
-impl<'a> AsRef<serenity_prelude::Context> for WhatTheFuck<'a> {
-    fn as_ref(&self) -> &serenity_prelude::Context {
-        self.0
-    }
-}
 pub async fn on_button(
     ctx: &Context,
     int: &ComponentInteraction,
@@ -154,22 +148,30 @@ pub async fn on_button(
 ) -> anyhow::Result<()> {
     // piss shit anmd die
     info!("Who the fuck touched the button?");
-    let (kind, id) = int
+    let (kind, oid) = int
         .data
         .custom_id
         .split_once('_')
         .expect("Invalid custom id, this should never fuckign happen");
-    let id: u32 = id.parse().expect("Failed to parse id, fuck!");
+    //
     //let mut m = int.message.clone();
     //
+    
     let uid = int.user.id.get();
     match kind {
         "claim" => {
+            let id: u32 = oid.parse().expect("Failed to parse id, fuck!");
             int.defer_ephemeral(ctx).await?;
             lc.db.claim_report(id, uid).await?;
             update_report_message(ctx, id, &lc.db).await?;
+        },
+        "past" => {
+            int.defer_ephemeral(ctx).await?;
+            past_btn(int, oid, lc, ctx).await?;
+            return Ok(())
         }
         "close" => {
+            let id: u32 = oid.parse().expect("Failed to parse id, fuck!");
             let report = lc
                 .db
                 .get_report_from_id(id)
@@ -250,6 +252,7 @@ pub async fn on_button(
             }
         }
         "forceclose" => {
+            let id: u32 = oid.parse().expect("Failed to parse id, fuck!");
             int.defer_ephemeral(ctx).await?;
             let report = lc
                 .db
@@ -273,6 +276,7 @@ pub async fn on_button(
             }
         }
         "edit" => {
+            let id: u32 = oid.parse().expect("Failed to parse id, fuck!");
             let action = lc
                 .db
                 .get_action_from_id(id)
@@ -380,5 +384,76 @@ async fn on_message(
         new_message.delete(ctx).await?;
         return Ok(());
     }
+    Ok(())
+}
+
+
+async fn past_btn(
+    int: &ComponentInteraction,
+    who: &str,
+    lc: &LurkChan,
+    ctx: &Context
+) -> anyhow::Result<()> {
+    let info = lc.db.collect_user_info(&who).await?;
+
+    let reported_embed = CreateEmbed::default()
+        .title(format!("Reports against {}", who))
+        .description(
+            info.preview_reported
+                .into_iter()
+                .fold(String::new(), |mut o, (id, i)| {
+                    o.push_str(&format!(
+                        "* Reported by {} ({}) for '{}' ({})\n",
+                        i.reporter_name, i.reporter_id, i.report_reason, id
+                    ));
+                    o
+                }),
+        )
+        .footer(CreateEmbedFooter::new(format!(
+            "{} reports",
+            info.times_reported
+        )));
+
+    let reporter_embed = CreateEmbed::default()
+        .title(format!("Reports by {}", who))
+        .description(info.preview_reported_others.into_iter().fold(
+            String::new(),
+            |mut o, (id, i)| {
+                o.push_str(&format!(
+                    "* Reported {} ({}) for '{}' ({})\n",
+                    i.reported_name, i.reported_id, i.report_reason, id
+                ));
+                o
+            },
+        ))
+        .footer(CreateEmbedFooter::new(format!(
+            "{} reports",
+            info.times_reported_others
+        )));
+
+    let action_embed = CreateEmbed::default()
+        .title(format!("Actions against {}", who))
+        .description(
+            info.preview_actioned
+                .into_iter()
+                .fold(String::new(), |mut o, (id, i)| {
+                    o.push_str(&format!("* {} for '{}' ({})\n", i.action, i.offense, id));
+                    o
+                }),
+        )
+        .footer(CreateEmbedFooter::new(format!(
+            "{} actions",
+            info.times_actioned
+        )));
+
+    int.edit_response(
+        ctx,
+        EditInteractionResponse::default()
+            .content(format!("Past reports and actions for {}", who))
+            .add_embed(reported_embed)
+            .add_embed(reporter_embed)
+            .add_embed(action_embed)
+    )
+    .await?;
     Ok(())
 }

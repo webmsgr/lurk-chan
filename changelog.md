@@ -1,3 +1,9 @@
+# 2.2.0
+* I'M BACK
+* updated deps
+* added a past button to the reports
+* I ALWAYS COME BACK
+
 # 2.1.3
 * replace [QM] and [AMP] with ? and & respectively
 * color backtrace

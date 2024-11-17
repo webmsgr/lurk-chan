@@ -136,9 +136,9 @@ async fn bot(config: Config, db: Database, s: ShutdownManager<&'static str>) -> 
     .framework(Framework::new(
         FrameworkOptions {
             commands: commands::commands(),
-            event_handler: |ctx, evt, framework, _| {
+            event_handler: |framework, evt| {
                 Box::pin(async move {
-                    if let Err(e) = event::handle(ctx, evt, framework).await {
+                    if let Err(e) = event::handle(framework.serenity_context, evt, framework).await {
                         println!("Error handling event ({:?}): {:?}", evt, e);
                         return Err(e);
                     }

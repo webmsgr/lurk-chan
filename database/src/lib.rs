@@ -95,7 +95,7 @@ impl Database {
         }
     }
     pub async fn report_count_no_audit(&self) -> Result<u32, Error> {
-        let res: i32 = sqlx::query_scalar!("select count(*) from Reports R left join Actions A on A.report == R.id where A.report is null;").fetch_one(&self.pool).await?;
+        let res: i64 = sqlx::query_scalar!("select count(*) from Reports R left join Actions A on A.report == R.id where A.report is null;").fetch_one(&self.pool).await?;
         Ok(res as u32)
     }
     pub async fn add_report_message(
@@ -121,7 +121,7 @@ impl Database {
     }
     pub async fn report_count_from_server(&self, server: Location) -> Result<u32, Error> {
         let s = server.to_string();
-        let res: i32 = sqlx::query_scalar!("select count(*) from Reports where location = ?", s)
+        let res: i64 = sqlx::query_scalar!("select count(*) from Reports where location = ?", s)
             .fetch_one(&self.pool)
             .await?;
         Ok(res as u32)
@@ -177,13 +177,13 @@ impl Database {
     }
     pub async fn audit_count_from_server(&self, server: Location) -> Result<u32, Error> {
         let s = server.to_string();
-        let res: i32 = sqlx::query_scalar!("select count(*) from Actions where server = ?", s)
+        let res: i64 = sqlx::query_scalar!("select count(*) from Actions where server = ?", s)
             .fetch_one(&self.pool)
             .await?;
         Ok(res as u32)
     }
     pub async fn audit_count_without_report(&self) -> Result<u32, Error> {
-        let res: i32 = sqlx::query_scalar!("select count(*) from Actions where report is null")
+        let res: i64 = sqlx::query_scalar!("select count(*) from Actions where report is null")
             .fetch_one(&self.pool)
             .await?;
         Ok(res as u32)
@@ -201,7 +201,7 @@ impl Database {
         }
     }
     pub async fn get_report_count(&self, id: &str) -> Result<u32, Error> {
-        let res: i32 =
+        let res: i64 =
             sqlx::query_scalar!("select count(*) from Reports where reported_id = ?", id)
                 .fetch_one(&self.pool)
                 .await?;
@@ -401,39 +401,39 @@ impl Database {
         })
     }
     pub async fn total_report_count(&self) -> Result<u32, Error> {
-        let res: i32 = sqlx::query_scalar!("select count(*) from Reports")
+        let res = sqlx::query_scalar!("select count(*) from Reports")
             .fetch_one(&self.pool)
             .await?;
         Ok(res as u32)
     }
     pub async fn total_action_count(&self) -> Result<u32, Error> {
-        let res: i32 = sqlx::query_scalar!("select count(*) from Actions")
+        let res= sqlx::query_scalar!("select count(*) from Actions")
             .fetch_one(&self.pool)
             .await?;
         Ok(res as u32)
     }
     pub async fn get_report_count_by_status(&self, status: ReportStatus) -> Result<u32, Error> {
         let s = status.to_db();
-        let res: i32 =
+        let res =
             sqlx::query_scalar!("select count(*) from Reports where report_status = ?", s)
                 .fetch_one(&self.pool)
                 .await?;
         Ok(res as u32)
     }
     pub async fn get_report_message_count(&self) -> Result<u32, Error> {
-        let res: i32 = sqlx::query_scalar!("select count(*) from ReportMessages")
+        let res = sqlx::query_scalar!("select count(*) from ReportMessages")
             .fetch_one(&self.pool)
             .await?;
         Ok(res as u32)
     }
     pub async fn get_action_message_count(&self) -> Result<u32, Error> {
-        let res: i32 = sqlx::query_scalar!("select count(*) from ActionMessages")
+        let res= sqlx::query_scalar!("select count(*) from ActionMessages")
             .fetch_one(&self.pool)
             .await?;
         Ok(res as u32)
     }
     pub async fn foreign_key_check(&self) -> Result<usize, Error> {
-        let s = sqlx::query!("pragma foreign_key_check;")
+        let s = sqlx::query("pragma foreign_key_check;")
             .fetch_all(&self.pool)
             .await?;
         Ok(s.len())
@@ -443,8 +443,8 @@ impl Database {
             .fetch_all(&self.pool)
             .await?;
         for i in s {
-            if i.integrity_check != "ok" {
-                return Err(Error::ForeignKeyError(i.integrity_check));
+            if i.integrity_check != Some("ok".to_string()) {
+                return Err(Error::ForeignKeyError(i.integrity_check.unwrap_or_else(|| "Unknown".to_string())));
             }
         }
         Ok(())

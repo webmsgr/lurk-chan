@@ -6,7 +6,7 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "target_id",
@@ -41,7 +41,7 @@
       {
         "name": "report",
         "ordinal": 7,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

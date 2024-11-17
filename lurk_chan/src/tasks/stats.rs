@@ -19,10 +19,11 @@ pub async fn stats_task(
     shut: ShutdownManager<&'static str>,
 ) -> anyhow::Result<()> {
     info!("ayy!");
+    tokio::time::sleep(Duration::from_secs(10)).await; // give discord time to get going
     let mut s = lc.config.discord.stats.messages_iter(ctx.http()).boxed();
     let mut m = None;
     while let Ok(Some(e)) = s.try_next().await {
-        if e.is_own(ctx.cache().expect("cache")) {
+        if e.author == **ctx.cache().expect("has cache").current_user() {
             m.replace(e);
             break;
         }
