@@ -81,12 +81,12 @@ async fn do_it(
             let aid = ctx.data().db.add_action(a.clone()).await?;
             let m = channel_for_msg
                 .send_message(
-                    ctx.serenity_context,
+                    ctx.serenity_context(),
                     CreateMessage::default()
                         .embed(
                             lurk_chan::create_action_embed(
                                 &a,
-                                &ctx.serenity_context,
+                                &ctx.serenity_context(),
                                 aid,
                                 channel_for_msg,
                             )

@@ -137,7 +137,22 @@ pub async fn create_report_action_row(
 
         ReportStatus::Closed => None,
     };
-    Ok(if let Some(a) = i { vec![a] } else { vec![] })
+    let mut base = if let Some(a) = i { vec![a] } else { vec![] };
+    base.push(CreateActionRow::Buttons(vec![
+        CreateButton::new(format!(
+            "past_{}",
+            r.reported_id
+        ))
+            .label("Past (Reported)")
+            .style(ButtonStyle::Secondary),
+        CreateButton::new(format!(
+            "past_{}",
+            r.reporter_id
+        ))
+            .label("Past (Reporter)")
+            .style(ButtonStyle::Secondary),
+    ]));
+    Ok(base)
 }
 
 pub async fn update_report_message(

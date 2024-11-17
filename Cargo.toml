@@ -3,7 +3,7 @@ members = ["lurk_chan", "common", "database"]
 resolver = "2"
 
 [workspace.package]
-rust-version = "1.74.0"
+rust-version = "1.81.0"
 
 
 #[patch.'https://github.com/serenity-rs/serenity']

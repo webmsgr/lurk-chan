@@ -86,12 +86,12 @@ async fn audit(
             // send a new message
             let new_message = new_channel
                 .send_message(
-                    ctx.serenity_context,
+                    ctx.serenity_context(),
                     CreateMessage::default()
                         .embed(
                             lurk_chan::create_action_embed(
                                 &a,
-                                &ctx.serenity_context,
+                                &ctx.serenity_context(),
                                 id,
                                 new_channel,
                             )
@@ -102,7 +102,7 @@ async fn audit(
                 .await?;
 
             // remove old message
-            old_message.delete(ctx.serenity_context).await?;
+            old_message.delete(ctx.serenity_context()).await?;
 
             // update DB
             ctx.data()

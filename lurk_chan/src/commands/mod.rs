@@ -1,7 +1,7 @@
 use std::time::Duration;
 mod audit;
 mod move_thing;
-mod past;
+pub mod past;
 mod ping;
 mod report;
 mod report_to_admin;
